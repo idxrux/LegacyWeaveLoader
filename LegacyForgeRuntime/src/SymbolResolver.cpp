@@ -4,14 +4,22 @@
 
 #pragma comment(lib, "dbghelp.lib")
 
+// Exact MSVC-decorated symbol names from the game's PDB.
+// These are verified against the actual Minecraft.Client.pdb.
+static const char* SYM_RUN_STATIC_CTORS = "?MinecraftWorld_RunStaticCtors@@YAXXZ";
+static const char* SYM_MINECRAFT_TICK   = "?tick@Minecraft@@QEAAX_N0@Z";
+static const char* SYM_MINECRAFT_INIT   = "?init@Minecraft@@QEAAXXZ";
+static const char* SYM_EXIT_GAME        = "?ExitGame@CConsoleMinecraftApp@@UEAAXXZ";
+
 bool SymbolResolver::Initialize()
 {
     m_process = GetCurrentProcess();
 
-    SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_DEBUG);
+    SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_DEBUG);
 
     if (!SymInitialize(m_process, nullptr, TRUE))
     {
+        printf("[LegacyForge] SymInitialize failed (error %lu)\n", GetLastError());
         return false;
     }
 
@@ -19,7 +27,7 @@ bool SymbolResolver::Initialize()
     return true;
 }
 
-void* SymbolResolver::Resolve(const char* functionName)
+void* SymbolResolver::Resolve(const char* decoratedName)
 {
     if (!m_initialized) return nullptr;
 
@@ -30,85 +38,36 @@ void* SymbolResolver::Resolve(const char* functionName)
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     symbol->MaxNameLen = MAX_SYM_NAME;
 
-    if (SymFromName(m_process, functionName, symbol))
+    if (SymFromName(m_process, decoratedName, symbol))
     {
         return reinterpret_cast<void*>(symbol->Address);
     }
 
+    printf("[LegacyForge] SymFromName failed for '%s' (error %lu)\n", decoratedName, GetLastError());
     return nullptr;
-}
-
-struct EnumContext
-{
-    const char* targetName;
-    void* result;
-};
-
-static BOOL CALLBACK EnumSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG SymbolSize, PVOID UserContext)
-{
-    auto* ctx = static_cast<EnumContext*>(UserContext);
-    if (strstr(pSymInfo->Name, ctx->targetName) != nullptr)
-    {
-        ctx->result = reinterpret_cast<void*>(pSymInfo->Address);
-        return FALSE;
-    }
-    return TRUE;
 }
 
 bool SymbolResolver::ResolveGameFunctions()
 {
-    // MinecraftWorld_RunStaticCtors is a free function (not mangled in complex ways)
-    pRunStaticCtors = Resolve("MinecraftWorld_RunStaticCtors");
-    if (!pRunStaticCtors)
-    {
-        // Try with wildcard enumeration
-        EnumContext ctx = { "MinecraftWorld_RunStaticCtors", nullptr };
-        SymEnumSymbols(m_process, 0, "*MinecraftWorld_RunStaticCtors*", EnumSymbolsCallback, &ctx);
-        pRunStaticCtors = ctx.result;
-    }
+    pRunStaticCtors = Resolve(SYM_RUN_STATIC_CTORS);
+    pMinecraftTick  = Resolve(SYM_MINECRAFT_TICK);
+    pMinecraftInit  = Resolve(SYM_MINECRAFT_INIT);
+    pExitGame       = Resolve(SYM_EXIT_GAME);
 
-    // Minecraft::tick -- MSVC mangles this. Try undecorated name first.
-    pMinecraftTick = Resolve("Minecraft::tick");
-    if (!pMinecraftTick)
-    {
-        EnumContext ctx = { "Minecraft::tick", nullptr };
-        SymEnumSymbols(m_process, 0, "*Minecraft*tick*", EnumSymbolsCallback, &ctx);
-        pMinecraftTick = ctx.result;
-    }
+    if (pRunStaticCtors) printf("[LegacyForge] RunStaticCtors     @ %p\n", pRunStaticCtors);
+    else                 printf("[LegacyForge] MISSING: MinecraftWorld_RunStaticCtors\n");
 
-    // Minecraft::init
-    pMinecraftInit = Resolve("Minecraft::init");
-    if (!pMinecraftInit)
-    {
-        EnumContext ctx = { "Minecraft::init", nullptr };
-        SymEnumSymbols(m_process, 0, "*Minecraft*init*", EnumSymbolsCallback, &ctx);
-        pMinecraftInit = ctx.result;
-    }
+    if (pMinecraftTick)  printf("[LegacyForge] Minecraft::tick    @ %p\n", pMinecraftTick);
+    else                 printf("[LegacyForge] MISSING: Minecraft::tick\n");
 
-    // Minecraft::destroy
-    pMinecraftDestroy = Resolve("Minecraft::destroy");
-    if (!pMinecraftDestroy)
-    {
-        EnumContext ctx = { "Minecraft::destroy", nullptr };
-        SymEnumSymbols(m_process, 0, "*Minecraft*destroy*", EnumSymbolsCallback, &ctx);
-        pMinecraftDestroy = ctx.result;
-    }
+    if (pMinecraftInit)  printf("[LegacyForge] Minecraft::init    @ %p\n", pMinecraftInit);
+    else                 printf("[LegacyForge] MISSING: Minecraft::init\n");
 
-    bool allResolved = pRunStaticCtors && pMinecraftTick && pMinecraftInit && pMinecraftDestroy;
+    if (pExitGame)       printf("[LegacyForge] ExitGame           @ %p\n", pExitGame);
+    else                 printf("[LegacyForge] MISSING: CConsoleMinecraftApp::ExitGame\n");
 
-    if (pRunStaticCtors) printf("[LegacyForge] Resolved RunStaticCtors @ %p\n", pRunStaticCtors);
-    else printf("[LegacyForge] MISSING: MinecraftWorld_RunStaticCtors\n");
-
-    if (pMinecraftTick) printf("[LegacyForge] Resolved Minecraft::tick @ %p\n", pMinecraftTick);
-    else printf("[LegacyForge] MISSING: Minecraft::tick\n");
-
-    if (pMinecraftInit) printf("[LegacyForge] Resolved Minecraft::init @ %p\n", pMinecraftInit);
-    else printf("[LegacyForge] MISSING: Minecraft::init\n");
-
-    if (pMinecraftDestroy) printf("[LegacyForge] Resolved Minecraft::destroy @ %p\n", pMinecraftDestroy);
-    else printf("[LegacyForge] MISSING: Minecraft::destroy\n");
-
-    return allResolved;
+    // RunStaticCtors, tick, and init are critical. ExitGame is optional (graceful shutdown).
+    return pRunStaticCtors && pMinecraftTick && pMinecraftInit;
 }
 
 void SymbolResolver::Cleanup()

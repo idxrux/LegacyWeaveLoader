@@ -5,18 +5,18 @@
 namespace GameHooks
 {
     RunStaticCtors_fn Original_RunStaticCtors = nullptr;
-    MinecraftTick_fn Original_MinecraftTick = nullptr;
-    MinecraftInit_fn Original_MinecraftInit = nullptr;
-    MinecraftDestroy_fn Original_MinecraftDestroy = nullptr;
+    MinecraftTick_fn  Original_MinecraftTick = nullptr;
+    MinecraftInit_fn  Original_MinecraftInit = nullptr;
+    ExitGame_fn       Original_ExitGame = nullptr;
 
     void Hooked_RunStaticCtors()
     {
-        printf("[LegacyForge] RunStaticCtors hook fired -- calling PreInit\n");
+        printf("[LegacyForge] Hook: RunStaticCtors -- calling PreInit\n");
         DotNetHost::CallPreInit();
 
         Original_RunStaticCtors();
 
-        printf("[LegacyForge] RunStaticCtors complete -- calling Init\n");
+        printf("[LegacyForge] Hook: RunStaticCtors complete -- calling Init\n");
         DotNetHost::CallInit();
     }
 
@@ -34,15 +34,15 @@ namespace GameHooks
     {
         Original_MinecraftInit(thisPtr);
 
-        printf("[LegacyForge] Minecraft::init complete -- calling PostInit\n");
+        printf("[LegacyForge] Hook: Minecraft::init complete -- calling PostInit\n");
         DotNetHost::CallPostInit();
     }
 
-    void __fastcall Hooked_MinecraftDestroy(void* thisPtr)
+    void __fastcall Hooked_ExitGame(void* thisPtr)
     {
-        printf("[LegacyForge] Minecraft::destroy -- calling Shutdown\n");
+        printf("[LegacyForge] Hook: ExitGame -- calling Shutdown\n");
         DotNetHost::CallShutdown();
 
-        Original_MinecraftDestroy(thisPtr);
+        Original_ExitGame(thisPtr);
     }
 }

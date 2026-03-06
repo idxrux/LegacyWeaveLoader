@@ -25,7 +25,7 @@ class Program
 
             if (string.IsNullOrEmpty(config.GameExePath) || !File.Exists(config.GameExePath))
             {
-                Console.Write("Enter path to MinecraftLegacy.exe: ");
+                Console.Write("Enter path to Minecraft.Client.exe: ");
                 string? input = Console.ReadLine()?.Trim().Trim('"');
 
                 if (string.IsNullOrEmpty(input) || !File.Exists(input))

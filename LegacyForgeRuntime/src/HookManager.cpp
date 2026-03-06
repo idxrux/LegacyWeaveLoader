@@ -22,6 +22,7 @@ bool HookManager::Install(const SymbolResolver& symbols)
             printf("[LegacyForge] Failed to hook RunStaticCtors\n");
             return false;
         }
+        printf("[LegacyForge] Hooked RunStaticCtors\n");
     }
 
     // Hook Minecraft::tick
@@ -34,6 +35,7 @@ bool HookManager::Install(const SymbolResolver& symbols)
             printf("[LegacyForge] Failed to hook Minecraft::tick\n");
             return false;
         }
+        printf("[LegacyForge] Hooked Minecraft::tick\n");
     }
 
     // Hook Minecraft::init
@@ -46,17 +48,21 @@ bool HookManager::Install(const SymbolResolver& symbols)
             printf("[LegacyForge] Failed to hook Minecraft::init\n");
             return false;
         }
+        printf("[LegacyForge] Hooked Minecraft::init\n");
     }
 
-    // Hook Minecraft::destroy
-    if (symbols.pMinecraftDestroy)
+    // Hook CConsoleMinecraftApp::ExitGame (optional -- for graceful shutdown)
+    if (symbols.pExitGame)
     {
-        if (MH_CreateHook(symbols.pMinecraftDestroy,
-                          reinterpret_cast<void*>(&GameHooks::Hooked_MinecraftDestroy),
-                          reinterpret_cast<void**>(&GameHooks::Original_MinecraftDestroy)) != MH_OK)
+        if (MH_CreateHook(symbols.pExitGame,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ExitGame),
+                          reinterpret_cast<void**>(&GameHooks::Original_ExitGame)) != MH_OK)
         {
-            printf("[LegacyForge] Failed to hook Minecraft::destroy\n");
-            return false;
+            printf("[LegacyForge] Warning: Failed to hook ExitGame (shutdown hook unavailable)\n");
+        }
+        else
+        {
+            printf("[LegacyForge] Hooked ExitGame\n");
         }
     }
 

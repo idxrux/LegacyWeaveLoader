@@ -12,10 +12,10 @@ public:
 
     void* Resolve(const char* functionName);
 
-    void* pRunStaticCtors = nullptr;
-    void* pMinecraftTick = nullptr;
-    void* pMinecraftInit = nullptr;
-    void* pMinecraftDestroy = nullptr;
+    void* pRunStaticCtors = nullptr;    // MinecraftWorld_RunStaticCtors
+    void* pMinecraftTick = nullptr;     // Minecraft::tick(bool, bool)
+    void* pMinecraftInit = nullptr;     // Minecraft::init()
+    void* pExitGame = nullptr;          // CConsoleMinecraftApp::ExitGame()
 
 private:
     HANDLE m_process = nullptr;
