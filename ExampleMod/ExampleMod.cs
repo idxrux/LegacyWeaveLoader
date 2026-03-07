@@ -26,6 +26,7 @@ public class ExampleMod : IMod
         Ruby = Registry.Item.Register("examplemod:ruby",
             new ItemProperties()
                 .MaxStackSize(64)
+                .Icon("ruby")
                 .InCreativeTab(CreativeTab.Materials));
 
         Registry.Recipe.AddFurnace("examplemod:ruby_ore", "examplemod:ruby", 1.0f);

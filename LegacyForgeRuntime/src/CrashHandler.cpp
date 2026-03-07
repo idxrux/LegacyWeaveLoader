@@ -150,6 +150,24 @@ static LONG WINAPI VectoredHandler(EXCEPTION_POINTERS* ep)
 
     DWORD code = ep->ExceptionRecord->ExceptionCode;
 
+    // The game's debug build uses __debugbreak() (int 3) as assertions throughout
+    // the texture system and other subsystems. Without a debugger the default
+    // handler terminates the process. We skip past the 1-byte int 3 instruction
+    // so the game's fallback code (e.g. missing-texture) can run normally.
+    if (code == EXCEPTION_BREAKPOINT && s_gameBase != 0)
+    {
+        DWORD64 rip = ep->ContextRecord->Rip;
+        HMODULE hMod = nullptr;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               reinterpret_cast<LPCSTR>(rip), &hMod) &&
+            reinterpret_cast<uintptr_t>(hMod) == s_gameBase)
+        {
+            ep->ContextRecord->Rip += 1;
+            return EXCEPTION_CONTINUE_EXECUTION;
+        }
+    }
+
     if (!IsFatalException(code))
         return EXCEPTION_CONTINUE_SEARCH;
 

@@ -25,7 +25,8 @@ internal static class NativeInterop
     internal static extern int native_register_item(
         string namespacedId,
         int maxStackSize,
-        int maxDamage);
+        int maxDamage,
+        string iconName);
 
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int native_register_entity(

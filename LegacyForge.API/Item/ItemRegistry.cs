@@ -35,7 +35,8 @@ public static class ItemRegistry
         int numericId = NativeInterop.native_register_item(
             id.ToString(),
             properties.MaxStackSizeValue,
-            properties.MaxDamageValue);
+            properties.MaxDamageValue,
+            properties.IconValue);
 
         if (numericId < 0)
             throw new InvalidOperationException($"Failed to register item '{id}'. No free IDs or invalid parameters.");

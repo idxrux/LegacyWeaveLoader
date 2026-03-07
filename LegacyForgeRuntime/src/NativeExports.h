@@ -18,7 +18,8 @@ extern "C"
     __declspec(dllexport) int native_register_item(
         const char* namespacedId,
         int maxStackSize,
-        int maxDamage);
+        int maxDamage,
+        const char* iconName);
 
     __declspec(dllexport) int native_register_entity(
         const char* namespacedId,

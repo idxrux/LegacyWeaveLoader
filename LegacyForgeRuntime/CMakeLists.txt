@@ -80,6 +80,7 @@ add_library(LegacyForgeRuntime SHARED
     src/NativeExports.cpp
     src/CreativeInventory.cpp
     src/MainMenuOverlay.cpp
+    src/GameObjectFactory.cpp
 )
 
 target_include_directories(LegacyForgeRuntime PRIVATE

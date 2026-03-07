@@ -1,8 +1,11 @@
 #include "NativeExports.h"
 #include "IdRegistry.h"
 #include "CreativeInventory.h"
+#include "GameObjectFactory.h"
 #include "LogUtil.h"
+#include <Windows.h>
 #include <cstring>
+#include <string>
 
 extern "C"
 {
@@ -29,13 +32,29 @@ int native_register_block(
     LogUtil::Log("[LegacyForge] Registered block '%s' -> ID %d (hardness=%.1f, resistance=%.1f)",
                  namespacedId, id, hardness, resistance);
 
+    // Convert icon name from UTF-8 to wide string
+    std::wstring wIcon;
+    if (iconName)
+    {
+        int len = MultiByteToWideChar(CP_UTF8, 0, iconName, -1, nullptr, 0);
+        wIcon.resize(len > 0 ? len - 1 : 0);
+        MultiByteToWideChar(CP_UTF8, 0, iconName, -1, &wIcon[0], len);
+    }
+
+    if (!GameObjectFactory::CreateTile(id, materialId, hardness, resistance,
+                                        soundType, wIcon.empty() ? nullptr : wIcon.c_str()))
+    {
+        LogUtil::Log("[LegacyForge] Warning: failed to create game Tile for block '%s' id=%d", namespacedId, id);
+    }
+
     return id;
 }
 
 int native_register_item(
     const char* namespacedId,
     int maxStackSize,
-    int maxDamage)
+    int maxDamage,
+    const char* iconName)
 {
     if (!namespacedId) return -1;
 
@@ -48,6 +67,19 @@ int native_register_item(
 
     LogUtil::Log("[LegacyForge] Registered item '%s' -> ID %d (stack=%d, durability=%d)",
                  namespacedId, id, maxStackSize, maxDamage);
+
+    std::wstring wIcon;
+    if (iconName && iconName[0])
+    {
+        int len = MultiByteToWideChar(CP_UTF8, 0, iconName, -1, nullptr, 0);
+        wIcon.resize(len > 0 ? len - 1 : 0);
+        MultiByteToWideChar(CP_UTF8, 0, iconName, -1, &wIcon[0], len);
+    }
+
+    if (!GameObjectFactory::CreateItem(id, maxStackSize, wIcon.empty() ? nullptr : wIcon.c_str()))
+    {
+        LogUtil::Log("[LegacyForge] Warning: failed to create game Item for '%s' id=%d", namespacedId, id);
+    }
 
     return id;
 }

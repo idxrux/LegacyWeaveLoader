@@ -3,6 +3,7 @@
 #include "SymbolResolver.h"
 #include "CreativeInventory.h"
 #include "MainMenuOverlay.h"
+#include "GameObjectFactory.h"
 #include "LogUtil.h"
 #include <MinHook.h>
 
@@ -63,6 +64,8 @@ bool HookManager::Install(const SymbolResolver& symbols)
             LogUtil::Log("[LegacyForge] Hooked ExitGame");
         }
     }
+
+    GameObjectFactory::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
 
     if (symbols.pCreativeStaticCtor)
     {

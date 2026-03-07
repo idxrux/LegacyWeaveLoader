@@ -36,9 +36,15 @@ private:
         int nextFreeId;
     };
 
-    static constexpr int BLOCK_MOD_START = 256;
-    static constexpr int BLOCK_MAX = 4095;
-    static constexpr int ITEM_MOD_START = 1000;
+    // Tile IDs 174-255 are unused by vanilla (161-169 also free but small).
+    // Must stay <= 255 so TileItem can map tile ID to Item::items[tileId].
+    static constexpr int BLOCK_MOD_START = 174;
+    static constexpr int BLOCK_MAX = 255;
+
+    // Item IDs here are the FINAL id stored in Item::id (= 256 + constructor param).
+    // Vanilla records go up to stored ID 2267 (constructor param 2011).
+    // We start above that to avoid conflicts.
+    static constexpr int ITEM_MOD_START = 3000;
     static constexpr int ITEM_MAX = 31999;
     static constexpr int ENTITY_MOD_START = 1000;
     static constexpr int ENTITY_MAX = 9999;

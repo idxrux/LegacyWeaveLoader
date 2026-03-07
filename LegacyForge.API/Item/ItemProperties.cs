@@ -7,9 +7,11 @@ public class ItemProperties
 {
     internal int MaxStackSizeValue = 64;
     internal int MaxDamageValue = 0;
+    internal string IconValue = "";
     internal CreativeTab CreativeTabValue = CreativeTab.None;
 
     public ItemProperties MaxStackSize(int size) { MaxStackSizeValue = size; return this; }
+    public ItemProperties Icon(string iconName) { IconValue = iconName; return this; }
 
     /// <summary>
     /// Set max damage for a tool/armor item. Setting this to a positive value
