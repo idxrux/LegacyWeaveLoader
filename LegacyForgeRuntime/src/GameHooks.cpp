@@ -164,11 +164,18 @@ namespace GameHooks
 
     void Hooked_CreativeStaticCtor()
     {
+        // Inject mod items BEFORE vanilla staticCtor so they are included in the
+        // TabSpec page-count calculation that happens at the end of staticCtor.
+        LogUtil::Log("[LegacyForge] Hook: CreativeStaticCtor -- injecting modded items first");
+        CreativeInventory::InjectItems();
+
         LogUtil::Log("[LegacyForge] Hook: CreativeStaticCtor -- building vanilla creative lists");
         Original_CreativeStaticCtor();
 
-        LogUtil::Log("[LegacyForge] Hook: CreativeStaticCtor -- injecting modded items");
-        CreativeInventory::InjectItems();
+        // Safety: recalculate TabSpec page counts in case the injection-before
+        // approach didn't fully account for all items (e.g. different binary).
+        LogUtil::Log("[LegacyForge] Hook: CreativeStaticCtor -- updating tab page counts");
+        CreativeInventory::UpdateTabPageCounts();
     }
 
     void __fastcall Hooked_MainMenuCustomDraw(void* thisPtr, void* region)
