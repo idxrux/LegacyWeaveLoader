@@ -1,6 +1,7 @@
 #include "HookManager.h"
 #include "GameHooks.h"
 #include "ModAtlas.h"
+#include "ModStrings.h"
 #include "SymbolResolver.h"
 #include "CreativeInventory.h"
 #include "MainMenuOverlay.h"
@@ -152,6 +153,9 @@ bool HookManager::Install(const SymbolResolver& symbols)
 
     if (symbols.pGetString)
     {
+        // Read GetString prologue bytes BEFORE MinHook overwrites them.
+        ModStrings::CaptureStringTableRef(symbols.pGetString);
+
         if (MH_CreateHook(symbols.pGetString,
                           reinterpret_cast<void*>(&GameHooks::Hooked_GetString),
                           reinterpret_cast<void**>(&GameHooks::Original_GetString)) != MH_OK)
@@ -163,6 +167,7 @@ bool HookManager::Install(const SymbolResolver& symbols)
             LogUtil::Log("[LegacyForge] Hooked CMinecraftApp::GetString (mod localization)");
         }
     }
+
 
     if (symbols.pGetResourceAsStream)
     {

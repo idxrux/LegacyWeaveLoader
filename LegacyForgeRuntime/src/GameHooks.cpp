@@ -79,16 +79,28 @@ namespace GameHooks
         return Original_GetResourceAsStream ? Original_GetResourceAsStream(fileName) : nullptr;
     }
 
+    static bool s_loggedGetString = false;
     const wchar_t* Hooked_GetString(int id)
     {
         if (ModStrings::IsModId(id))
         {
             const wchar_t* modStr = ModStrings::Get(id);
-            if (modStr)
+            LogUtil::Log("[LegacyForge] GetString(id=%d) -> mod '%ls'", id,
+                         (modStr && modStr[0]) ? modStr : L"<null/empty>");
+            if (modStr && modStr[0])
                 return modStr;
+            return L"[Mod]";
+        }
+        if (!s_loggedGetString && id > 0)
+        {
+            s_loggedGetString = true;
+            const wchar_t* r = Original_GetString ? Original_GetString(id) : L"";
+            LogUtil::Log("[LegacyForge] GetString(id=%d) -> vanilla '%ls' (first call sample)", id, r ? r : L"<null>");
+            return r;
         }
         return Original_GetString ? Original_GetString(id) : L"";
     }
+
 
     void Hooked_RunStaticCtors()
     {
@@ -99,6 +111,11 @@ namespace GameHooks
 
         LogUtil::Log("[LegacyForge] Hook: RunStaticCtors complete -- calling Init");
         DotNetHost::CallInit();
+
+        // Inject mod strings directly into the game's StringTable vector.
+        // This is necessary because the compiler inlines GetString at call
+        // sites like Item::getHoverName, bypassing our GetString hook.
+        ModStrings::InjectAllIntoGameTable();
     }
 
     void __fastcall Hooked_MinecraftTick(void* thisPtr, bool bFirst, bool bUpdateTextures)

@@ -77,6 +77,12 @@ bool SymbolResolver::ResolveGameFunctions()
     pMainMenuCustomDraw = Resolve(SYM_MAINMENU_CUSTOMDRAW);
     pPresent            = Resolve(SYM_PRESENT);
     pGetString          = Resolve(SYM_GET_STRING);
+    if (!pGetString)
+    {
+        pGetString = Resolve("?GetString@CConsoleMinecraftApp@@SAPEB_WH@Z");
+        if (!pGetString)
+            PdbParser::DumpMatching("GetString");
+    }
     pGetResourceAsStream = Resolve(SYM_GET_RESOURCE_AS_STREAM);
     pLoadUVs             = Resolve(SYM_LOAD_UVS);
     pSimpleIconCtor      = Resolve(SYM_SIMPLE_ICON_CTOR);
