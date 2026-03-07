@@ -46,6 +46,7 @@ public class BlockProperties
     internal string IconValue = "stone";
     internal float LightEmissionValue = 0.0f;
     internal int LightBlockValue = 255;
+    internal CreativeTab CreativeTabValue = CreativeTab.None;
 
     public BlockProperties Material(MaterialType material) { MaterialValue = material; return this; }
     public BlockProperties Hardness(float hardness) { HardnessValue = hardness; return this; }
@@ -55,4 +56,5 @@ public class BlockProperties
     public BlockProperties LightLevel(float level) { LightEmissionValue = level; return this; }
     public BlockProperties LightBlocking(int level) { LightBlockValue = level; return this; }
     public BlockProperties Indestructible() { HardnessValue = -1.0f; ResistanceValue = 6000000f; return this; }
+    public BlockProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
 }

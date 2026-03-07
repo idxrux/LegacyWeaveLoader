@@ -1,6 +1,5 @@
 #include "DotNetHost.h"
 
-#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <nethost.h>
 #include <hostfxr.h>
@@ -162,10 +161,11 @@ void DotNetHost::CallManagedInit()
         fn_Initialize(nullptr, 0);
 }
 
-void DotNetHost::CallDiscoverMods(const char* modsPath)
+int DotNetHost::CallDiscoverMods(const char* modsPath)
 {
     if (fn_DiscoverMods)
-        fn_DiscoverMods(const_cast<char*>(modsPath), static_cast<int>(strlen(modsPath)));
+        return fn_DiscoverMods(const_cast<char*>(modsPath), static_cast<int>(strlen(modsPath)));
+    return 0;
 }
 
 void DotNetHost::CallPreInit()

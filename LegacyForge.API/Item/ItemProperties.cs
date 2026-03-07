@@ -7,6 +7,7 @@ public class ItemProperties
 {
     internal int MaxStackSizeValue = 64;
     internal int MaxDamageValue = 0;
+    internal CreativeTab CreativeTabValue = CreativeTab.None;
 
     public ItemProperties MaxStackSize(int size) { MaxStackSizeValue = size; return this; }
 
@@ -15,4 +16,5 @@ public class ItemProperties
     /// makes the item damageable with a durability bar.
     /// </summary>
     public ItemProperties MaxDamage(int damage) { MaxDamageValue = damage; MaxStackSizeValue = 1; return this; }
+    public ItemProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
 }

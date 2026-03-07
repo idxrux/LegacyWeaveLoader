@@ -20,10 +20,13 @@ public class ExampleMod : IMod
                 .Hardness(3.0f)
                 .Resistance(15f)
                 .Sound(SoundType.Stone)
-                .Icon("ruby_ore"));
+                .Icon("ruby_ore")
+                .InCreativeTab(CreativeTab.BuildingBlocks));
 
         Ruby = Registry.Item.Register("examplemod:ruby",
-            new ItemProperties().MaxStackSize(64));
+            new ItemProperties()
+                .MaxStackSize(64)
+                .InCreativeTab(CreativeTab.Materials));
 
         Registry.Recipe.AddFurnace("examplemod:ruby_ore", "examplemod:ruby", 1.0f);
 

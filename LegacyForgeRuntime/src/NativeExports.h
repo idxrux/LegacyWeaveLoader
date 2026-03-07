@@ -48,4 +48,10 @@ extern "C"
     __declspec(dllexport) void native_subscribe_event(
         const char* eventName,
         void* managedFnPtr);
+
+    __declspec(dllexport) void native_add_to_creative(
+        int numericId,
+        int count,
+        int auxValue,
+        int groupIndex);
 }

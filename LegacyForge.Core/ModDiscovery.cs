@@ -4,10 +4,6 @@ using LegacyForge.API;
 
 namespace LegacyForge.Core;
 
-/// <summary>
-/// Discovers and loads mod assemblies from the mods/ directory.
-/// Each mod is loaded into its own AssemblyLoadContext for isolation.
-/// </summary>
 internal static class ModDiscovery
 {
     internal record DiscoveredMod(
@@ -30,6 +26,12 @@ internal static class ModDiscovery
 
         foreach (var dllPath in dllFiles)
         {
+            string fileName = Path.GetFileName(dllPath);
+
+            // Skip the API assembly -- it's a shared dependency, not a mod
+            if (fileName.Equals("LegacyForge.API.dll", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             try
             {
                 var discovered = LoadModAssembly(dllPath);
@@ -37,7 +39,7 @@ internal static class ModDiscovery
             }
             catch (Exception ex)
             {
-                Logger.Error($"Failed to load mod from {Path.GetFileName(dllPath)}: {ex.Message}");
+                Logger.Error($"Failed to load mod from {fileName}: {ex.Message}");
             }
         }
 
@@ -48,11 +50,18 @@ internal static class ModDiscovery
     {
         var results = new List<DiscoveredMod>();
         var fileName = Path.GetFileName(dllPath);
+        var fullPath = Path.GetFullPath(dllPath);
 
-        var loadContext = new AssemblyLoadContext(fileName, isCollectible: false);
-        var assembly = loadContext.LoadFromAssemblyPath(Path.GetFullPath(dllPath));
+        // Load into the SAME ALC that LegacyForge.Core lives in (the hostfxr component context).
+        // This ensures LegacyForge.API types (IMod, ModAttribute, etc.) have the same identity.
+        var coreContext = AssemblyLoadContext.GetLoadContext(typeof(ModDiscovery).Assembly)
+                          ?? AssemblyLoadContext.Default;
+        var assembly = coreContext.LoadFromAssemblyPath(fullPath);
 
-        var modTypes = assembly.GetTypes()
+        var allTypes = assembly.GetTypes();
+        Logger.Debug($"{fileName}: {allTypes.Length} type(s), checking for IMod implementations...");
+
+        var modTypes = allTypes
             .Where(t => t.IsClass && !t.IsAbstract && typeof(IMod).IsAssignableFrom(t));
 
         foreach (var type in modTypes)
@@ -67,7 +76,7 @@ internal static class ModDiscovery
             try
             {
                 var instance = (IMod)Activator.CreateInstance(type)!;
-                results.Add(new ModDiscovery.DiscoveredMod(instance, attr, assembly));
+                results.Add(new DiscoveredMod(instance, attr, assembly));
 
                 string name = string.IsNullOrEmpty(attr.Name) ? attr.Id : attr.Name;
                 Logger.Info($"Discovered mod: {name} v{attr.Version} by {attr.Author} ({fileName})");

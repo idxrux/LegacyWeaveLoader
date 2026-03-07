@@ -1,13 +1,18 @@
 #include "GameHooks.h"
 #include "DotNetHost.h"
+#include "CreativeInventory.h"
+#include "MainMenuOverlay.h"
 #include <cstdio>
 
 namespace GameHooks
 {
-    RunStaticCtors_fn Original_RunStaticCtors = nullptr;
-    MinecraftTick_fn  Original_MinecraftTick = nullptr;
-    MinecraftInit_fn  Original_MinecraftInit = nullptr;
-    ExitGame_fn       Original_ExitGame = nullptr;
+    RunStaticCtors_fn     Original_RunStaticCtors = nullptr;
+    MinecraftTick_fn      Original_MinecraftTick = nullptr;
+    MinecraftInit_fn      Original_MinecraftInit = nullptr;
+    ExitGame_fn           Original_ExitGame = nullptr;
+    CreativeStaticCtor_fn Original_CreativeStaticCtor = nullptr;
+    MainMenuCustomDraw_fn Original_MainMenuCustomDraw = nullptr;
+    Present_fn            Original_Present = nullptr;
 
     void Hooked_RunStaticCtors()
     {
@@ -44,5 +49,26 @@ namespace GameHooks
         DotNetHost::CallShutdown();
 
         Original_ExitGame(thisPtr);
+    }
+
+    void Hooked_CreativeStaticCtor()
+    {
+        printf("[LegacyForge] Hook: CreativeStaticCtor -- building vanilla creative lists\n");
+        Original_CreativeStaticCtor();
+
+        printf("[LegacyForge] Hook: CreativeStaticCtor -- injecting modded items\n");
+        CreativeInventory::InjectItems();
+    }
+
+    void __fastcall Hooked_MainMenuCustomDraw(void* thisPtr, void* region)
+    {
+        MainMenuOverlay::NotifyOnMainMenu();
+        Original_MainMenuCustomDraw(thisPtr, region);
+    }
+
+    void __fastcall Hooked_Present(void* thisPtr)
+    {
+        MainMenuOverlay::RenderBranding();
+        Original_Present(thisPtr);
     }
 }

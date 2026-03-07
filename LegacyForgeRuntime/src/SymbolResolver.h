@@ -1,7 +1,5 @@
 #pragma once
-#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <DbgHelp.h>
 
 class SymbolResolver
 {
@@ -10,14 +8,17 @@ public:
     bool ResolveGameFunctions();
     void Cleanup();
 
-    void* Resolve(const char* functionName);
+    void* Resolve(const char* decoratedName);
 
-    void* pRunStaticCtors = nullptr;    // MinecraftWorld_RunStaticCtors
-    void* pMinecraftTick = nullptr;     // Minecraft::tick(bool, bool)
-    void* pMinecraftInit = nullptr;     // Minecraft::init()
-    void* pExitGame = nullptr;          // CConsoleMinecraftApp::ExitGame()
+    void* pRunStaticCtors = nullptr;       // MinecraftWorld_RunStaticCtors
+    void* pMinecraftTick = nullptr;        // Minecraft::tick(bool, bool)
+    void* pMinecraftInit = nullptr;        // Minecraft::init()
+    void* pExitGame = nullptr;             // CConsoleMinecraftApp::ExitGame()
+    void* pCreativeStaticCtor = nullptr;   // IUIScene_CreativeMenu::staticCtor()
+    void* pMainMenuCustomDraw = nullptr;   // UIScene_MainMenu::customDraw()
+    void* pPresent = nullptr;              // C4JRender::Present()
 
 private:
-    HANDLE m_process = nullptr;
+    uintptr_t m_moduleBase = 0;
     bool m_initialized = false;
 };

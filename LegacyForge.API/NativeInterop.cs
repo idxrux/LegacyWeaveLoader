@@ -61,4 +61,7 @@ internal static class NativeInterop
 
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern void native_subscribe_event(string eventName, IntPtr managedFnPtr);
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void native_add_to_creative(int numericId, int count, int auxValue, int groupIndex);
 }

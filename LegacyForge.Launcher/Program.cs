@@ -1,10 +1,12 @@
+using System.Runtime.InteropServices;
+
 namespace LegacyForge.Launcher;
 
 class Program
 {
-    private const string ConfigFile = "legacyforge.json";
-    private const string RuntimeDll = "LegacyForgeRuntime.dll";
+    private const string RuntimeDllName = "LegacyForgeRuntime.dll";
 
+    [STAThread]
     static int Main(string[] args)
     {
         Console.WriteLine("╔══════════════════════════════════╗");
@@ -13,44 +15,58 @@ class Program
         Console.WriteLine("╚══════════════════════════════════╝");
         Console.WriteLine();
 
+        // All paths relative to where the exe lives, not the working directory
+        string baseDir = AppContext.BaseDirectory;
+        string configFile = Path.Combine(baseDir, "legacyforge.json");
+        string runtimeDll = Path.Combine(baseDir, RuntimeDllName);
+        string modsDir = Path.Combine(baseDir, "mods");
+
         try
         {
-            var config = Config.Load(ConfigFile);
+            var config = Config.Load(configFile);
 
             if (args.Length > 0 && File.Exists(args[0]))
             {
                 config.GameExePath = args[0];
-                config.Save(ConfigFile);
+                config.Save(configFile);
             }
 
             if (string.IsNullOrEmpty(config.GameExePath) || !File.Exists(config.GameExePath))
             {
-                Console.Write("Enter path to Minecraft.Client.exe: ");
-                string? input = Console.ReadLine()?.Trim().Trim('"');
+                Console.WriteLine("Please select Minecraft.Client.exe...");
+                string? selected = FileDialog.OpenFileDialog(
+                    "Select Minecraft.Client.exe",
+                    "Executable Files (*.exe)\0*.exe\0All Files (*.*)\0*.*\0");
 
-                if (string.IsNullOrEmpty(input) || !File.Exists(input))
+                if (string.IsNullOrEmpty(selected) || !File.Exists(selected))
                 {
-                    Console.Error.WriteLine("Error: Invalid path or file not found.");
+                    Console.Error.WriteLine("Error: No file selected or file not found.");
                     return 1;
                 }
 
-                config.GameExePath = Path.GetFullPath(input);
-                config.Save(ConfigFile);
-                Console.WriteLine($"Saved game path to {ConfigFile}");
+                config.GameExePath = Path.GetFullPath(selected);
+                config.Save(configFile);
+                Console.WriteLine($"Saved game path to {configFile}");
             }
 
-            if (!File.Exists(RuntimeDll))
+            if (!File.Exists(runtimeDll))
             {
-                Console.Error.WriteLine($"Error: {RuntimeDll} not found in current directory.");
-                Console.Error.WriteLine("Make sure the runtime DLL is next to LegacyForge.exe.");
+                Console.Error.WriteLine($"Error: {RuntimeDllName} not found.");
+                Console.Error.WriteLine($"Expected at: {runtimeDll}");
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("The C++ runtime DLL must be built separately with CMake:");
+                Console.Error.WriteLine("  cd LegacyForgeRuntime");
+                Console.Error.WriteLine("  cmake -B build -A x64");
+                Console.Error.WriteLine("  cmake --build build --config Release");
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("Then copy LegacyForgeRuntime.dll to the same folder as LegacyForge.exe.");
                 return 1;
             }
 
-            string modsDir = Path.Combine(AppContext.BaseDirectory, "mods");
             if (!Directory.Exists(modsDir))
             {
                 Directory.CreateDirectory(modsDir);
-                Console.WriteLine($"Created mods/ directory at {modsDir}");
+                Console.WriteLine($"Created mods/ directory");
             }
 
             int modCount = Directory.GetFiles(modsDir, "*.dll").Length;
@@ -58,13 +74,14 @@ class Program
             Console.WriteLine($"Launching {Path.GetFileName(config.GameExePath)}...");
 
             var process = Injector.LaunchSuspended(config.GameExePath);
-            Console.WriteLine($"Game process created (PID: {process.ProcessId}), injecting runtime...");
+            Console.WriteLine($"[OK] Game process created (PID: {process.ProcessId})");
+            Console.WriteLine($"[..] Injecting {RuntimeDllName}...");
 
-            Injector.InjectDll(process, RuntimeDll);
-            Console.WriteLine("LegacyForgeRuntime.dll injected successfully.");
+            Injector.InjectDll(process, runtimeDll);
+            Console.WriteLine($"[OK] {RuntimeDllName} injected and loaded in target process.");
 
             Injector.ResumeProcess(process);
-            Console.WriteLine("Game resumed. LegacyForge is active.");
+            Console.WriteLine("[OK] Game resumed. LegacyForge is active.");
             Console.WriteLine();
             Console.WriteLine("Press any key to exit the launcher (game will keep running).");
             Console.ReadKey(true);

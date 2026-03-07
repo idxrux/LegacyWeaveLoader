@@ -8,6 +8,9 @@
     <AssemblyName>ExampleMod</AssemblyName>
     <Description>Example mod for LegacyForge demonstrating the mod API</Description>
     <Version>1.0.0</Version>
+    <OutputPath>..\build\mods</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

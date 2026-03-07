@@ -45,6 +45,12 @@ public static class BlockRegistry
         if (numericId < 0)
             throw new InvalidOperationException($"Failed to register block '{id}'. No free IDs or invalid parameters.");
 
+        if (properties.CreativeTabValue != CreativeTab.None)
+        {
+            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            Logger.Debug($"Block '{id}' added to creative tab {properties.CreativeTabValue}");
+        }
+
         Logger.Debug($"Registered block '{id}' -> numeric ID {numericId}");
         return new RegisteredBlock(id, numericId);
     }

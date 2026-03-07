@@ -1,58 +1,81 @@
-#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <cstdio>
+#include <string>
+#include "LogUtil.h"
 #include "SymbolResolver.h"
 #include "HookManager.h"
 #include "DotNetHost.h"
+#include "MainMenuOverlay.h"
 
 static HMODULE g_hModule = nullptr;
 
-static void LogToFile(const char* msg)
+static std::string GetDllDirectory(HMODULE hModule)
 {
-    FILE* f = nullptr;
-    fopen_s(&f, "legacyforge.log", "a");
-    if (f)
-    {
-        fprintf(f, "%s\n", msg);
-        fclose(f);
-    }
+    char path[MAX_PATH] = {0};
+    GetModuleFileNameA(hModule, path, MAX_PATH);
+    std::string s(path);
+    size_t pos = s.find_last_of("\\/");
+    if (pos != std::string::npos)
+        return s.substr(0, pos + 1);
+    return ".\\";
 }
 
 DWORD WINAPI InitThread(LPVOID lpParam)
 {
-    LogToFile("[LegacyForge] InitThread started");
+    std::string baseDir = GetDllDirectory(g_hModule);
+    LogUtil::SetBaseDir(baseDir.c_str());
+
+    LogUtil::Log("[LegacyForge] InitThread started (module=%p)", g_hModule);
+    LogUtil::Log("[LegacyForge] Runtime DLL directory: %s", baseDir.c_str());
+
+    char cwd[MAX_PATH] = {0};
+    GetCurrentDirectoryA(MAX_PATH, cwd);
+    LogUtil::Log("[LegacyForge] Game working directory: %s", cwd);
+
+    char exePath[MAX_PATH] = {0};
+    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+    LogUtil::Log("[LegacyForge] Host executable: %s", exePath);
 
     SymbolResolver symbols;
     if (!symbols.Initialize())
     {
-        LogToFile("[LegacyForge] ERROR: Failed to initialize symbol resolver. Is the PDB present?");
+        LogUtil::Log("[LegacyForge] ERROR: Failed to initialize symbol resolver. Is the PDB present?");
         return 1;
     }
-    LogToFile("[LegacyForge] Symbol resolver initialized");
+    LogUtil::Log("[LegacyForge] Symbol resolver initialized");
 
     if (!symbols.ResolveGameFunctions())
     {
-        LogToFile("[LegacyForge] ERROR: Failed to resolve one or more game functions");
+        LogUtil::Log("[LegacyForge] ERROR: Failed to resolve critical game functions.");
         return 1;
     }
-    LogToFile("[LegacyForge] Game functions resolved from PDB");
+    LogUtil::Log("[LegacyForge] Game functions resolved from PDB");
 
     if (!HookManager::Install(symbols))
     {
-        LogToFile("[LegacyForge] ERROR: Failed to install hooks");
+        LogUtil::Log("[LegacyForge] ERROR: Failed to install hooks");
+        symbols.Cleanup();
         return 1;
     }
-    LogToFile("[LegacyForge] Hooks installed");
+    LogUtil::Log("[LegacyForge] Hooks installed");
+
+    // All symbol resolution is complete; release the PDB memory map
+    symbols.Cleanup();
 
     if (!DotNetHost::Initialize())
     {
-        LogToFile("[LegacyForge] ERROR: Failed to initialize .NET host");
+        LogUtil::Log("[LegacyForge] ERROR: Failed to initialize .NET host");
         return 1;
     }
-    LogToFile("[LegacyForge] .NET runtime initialized");
+    LogUtil::Log("[LegacyForge] .NET runtime initialized");
+
+    std::string modsPath = baseDir + "mods";
+    LogUtil::Log("[LegacyForge] Mods directory: %s", modsPath.c_str());
 
     DotNetHost::CallManagedInit();
-    DotNetHost::CallDiscoverMods("mods");
-    LogToFile("[LegacyForge] Mod discovery complete. Ready.");
+    int modCount = DotNetHost::CallDiscoverMods(modsPath.c_str());
+    MainMenuOverlay::SetModCount(modCount);
+    LogUtil::Log("[LegacyForge] Mod discovery complete (%d mods). Ready.", modCount);
 
     return 0;
 }

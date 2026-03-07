@@ -96,9 +96,30 @@ public static class Injector
                 "Failed to create remote thread for DLL injection");
         }
 
-        WaitForSingleObject(remoteThread, 10000);
+        uint waitResult = WaitForSingleObject(remoteThread, 10000);
+        if (waitResult != 0)
+        {
+            CloseHandle(remoteThread);
+            VirtualFreeEx(process.ProcessHandle, remoteMem, 0, MEM_RELEASE);
+            TerminateProcess(process.ProcessHandle, 1);
+            throw new Exception(
+                $"Timed out waiting for DLL injection (WaitForSingleObject returned {waitResult})");
+        }
+
+        GetExitCodeThread(remoteThread, out uint exitCode);
         CloseHandle(remoteThread);
         VirtualFreeEx(process.ProcessHandle, remoteMem, 0, MEM_RELEASE);
+
+        if (exitCode == 0)
+        {
+            TerminateProcess(process.ProcessHandle, 1);
+            throw new Exception(
+                "DLL injection failed: LoadLibraryW returned NULL.\n" +
+                "This usually means the DLL or one of its dependencies could not be found.\n" +
+                "Make sure the MSVC redistributable is installed and the DLL was built in Release mode.");
+        }
+
+        Console.WriteLine($"  LoadLibraryW returned module handle 0x{exitCode:X} -- DLL loaded in target process.");
     }
 
     public static void ResumeProcess(InjectedProcess process)
@@ -178,6 +199,9 @@ public static class Injector
 
     [DllImport("kernel32.dll")]
     private static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
+
+    [DllImport("kernel32.dll")]
+    private static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
 
     #endregion
 }

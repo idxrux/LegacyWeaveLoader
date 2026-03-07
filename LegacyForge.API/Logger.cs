@@ -13,7 +13,13 @@ public enum LogLevel
 /// </summary>
 public static class Logger
 {
-    internal static Action<string, LogLevel>? LogHandler;
+    private static Action<string, LogLevel>? LogHandler;
+
+    /// <summary>
+    /// Set the log handler that routes messages to the native runtime.
+    /// Called by LegacyForge.Core during initialization.
+    /// </summary>
+    public static void SetLogHandler(Action<string, LogLevel> handler) => LogHandler = handler;
 
     public static void Debug(string message) => Log(message, LogLevel.Debug);
     public static void Info(string message) => Log(message, LogLevel.Info);

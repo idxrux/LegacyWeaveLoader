@@ -1,6 +1,8 @@
 #include "HookManager.h"
 #include "GameHooks.h"
 #include "SymbolResolver.h"
+#include "CreativeInventory.h"
+#include "MainMenuOverlay.h"
 #include <MinHook.h>
 #include <cstdio>
 
@@ -51,7 +53,7 @@ bool HookManager::Install(const SymbolResolver& symbols)
         printf("[LegacyForge] Hooked Minecraft::init\n");
     }
 
-    // Hook CConsoleMinecraftApp::ExitGame (optional -- for graceful shutdown)
+    // Hook CConsoleMinecraftApp::ExitGame
     if (symbols.pExitGame)
     {
         if (MH_CreateHook(symbols.pExitGame,
@@ -63,6 +65,55 @@ bool HookManager::Install(const SymbolResolver& symbols)
         else
         {
             printf("[LegacyForge] Hooked ExitGame\n");
+        }
+    }
+
+    // Hook IUIScene_CreativeMenu::staticCtor
+    if (symbols.pCreativeStaticCtor)
+    {
+        CreativeInventory::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
+
+        if (MH_CreateHook(symbols.pCreativeStaticCtor,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_CreativeStaticCtor),
+                          reinterpret_cast<void**>(&GameHooks::Original_CreativeStaticCtor)) != MH_OK)
+        {
+            printf("[LegacyForge] Warning: Failed to hook CreativeStaticCtor\n");
+        }
+        else
+        {
+            printf("[LegacyForge] Hooked CreativeStaticCtor\n");
+        }
+    }
+
+    // Hook UIScene_MainMenu::customDraw (sets main-menu detection flag)
+    if (symbols.pMainMenuCustomDraw)
+    {
+        if (MH_CreateHook(symbols.pMainMenuCustomDraw,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_MainMenuCustomDraw),
+                          reinterpret_cast<void**>(&GameHooks::Original_MainMenuCustomDraw)) != MH_OK)
+        {
+            printf("[LegacyForge] Warning: Failed to hook MainMenuCustomDraw\n");
+        }
+        else
+        {
+            printf("[LegacyForge] Hooked MainMenuCustomDraw\n");
+        }
+    }
+
+    // Hook C4JRender::Present (draws branding overlay just before frame present)
+    if (symbols.pPresent)
+    {
+        MainMenuOverlay::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
+
+        if (MH_CreateHook(symbols.pPresent,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_Present),
+                          reinterpret_cast<void**>(&GameHooks::Original_Present)) != MH_OK)
+        {
+            printf("[LegacyForge] Warning: Failed to hook C4JRender::Present\n");
+        }
+        else
+        {
+            printf("[LegacyForge] Hooked C4JRender::Present\n");
         }
     }
 

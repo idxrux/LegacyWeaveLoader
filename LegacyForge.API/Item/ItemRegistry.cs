@@ -40,6 +40,12 @@ public static class ItemRegistry
         if (numericId < 0)
             throw new InvalidOperationException($"Failed to register item '{id}'. No free IDs or invalid parameters.");
 
+        if (properties.CreativeTabValue != CreativeTab.None)
+        {
+            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            Logger.Debug($"Item '{id}' added to creative tab {properties.CreativeTabValue}");
+        }
+
         Logger.Debug($"Registered item '{id}' -> numeric ID {numericId}");
         return new RegisteredItem(id, numericId);
     }

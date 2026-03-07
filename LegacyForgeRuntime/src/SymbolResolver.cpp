@@ -1,25 +1,43 @@
 #include "SymbolResolver.h"
+#include "PdbParser.h"
+#include "LogUtil.h"
 #include <cstdio>
 #include <cstring>
+#include <string>
 
-#pragma comment(lib, "dbghelp.lib")
-
-// Exact MSVC-decorated symbol names from the game's PDB.
-// These are verified against the actual Minecraft.Client.pdb.
-static const char* SYM_RUN_STATIC_CTORS = "?MinecraftWorld_RunStaticCtors@@YAXXZ";
-static const char* SYM_MINECRAFT_TICK   = "?tick@Minecraft@@QEAAX_N0@Z";
-static const char* SYM_MINECRAFT_INIT   = "?init@Minecraft@@QEAAXXZ";
-static const char* SYM_EXIT_GAME        = "?ExitGame@CConsoleMinecraftApp@@UEAAXXZ";
+static const char* SYM_RUN_STATIC_CTORS     = "?MinecraftWorld_RunStaticCtors@@YAXXZ";
+static const char* SYM_MINECRAFT_TICK       = "?tick@Minecraft@@QEAAX_N0@Z";
+static const char* SYM_MINECRAFT_INIT       = "?init@Minecraft@@QEAAXXZ";
+static const char* SYM_EXIT_GAME            = "?ExitGame@CConsoleMinecraftApp@@UEAAXXZ";
+static const char* SYM_CREATIVE_STATIC_CTOR = "?staticCtor@IUIScene_CreativeMenu@@SAXXZ";
+static const char* SYM_MAINMENU_CUSTOMDRAW  = "?customDraw@UIScene_MainMenu@@UEAAXPEAUIggyCustomDrawCallbackRegion@@@Z";
+static const char* SYM_PRESENT              = "?Present@C4JRender@@QEAAXXZ";
 
 bool SymbolResolver::Initialize()
 {
-    m_process = GetCurrentProcess();
-
-    SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_DEBUG);
-
-    if (!SymInitialize(m_process, nullptr, TRUE))
+    m_moduleBase = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+    if (!m_moduleBase)
     {
-        printf("[LegacyForge] SymInitialize failed (error %lu)\n", GetLastError());
+        LogUtil::Log("[LegacyForge] Failed to get module base address");
+        return false;
+    }
+
+    // Derive PDB path from executable path: replace .exe with .pdb
+    char exePath[MAX_PATH] = {0};
+    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+    std::string pdbPath(exePath);
+    size_t dotPos = pdbPath.rfind('.');
+    if (dotPos != std::string::npos)
+        pdbPath = pdbPath.substr(0, dotPos) + ".pdb";
+    else
+        pdbPath += ".pdb";
+
+    LogUtil::Log("[LegacyForge] PDB path: %s", pdbPath.c_str());
+    LogUtil::Log("[LegacyForge] Module base: %p", reinterpret_cast<void*>(m_moduleBase));
+
+    if (!PdbParser::Open(pdbPath.c_str()))
+    {
+        LogUtil::Log("[LegacyForge] ERROR: Failed to open PDB file");
         return false;
     }
 
@@ -31,50 +49,54 @@ void* SymbolResolver::Resolve(const char* decoratedName)
 {
     if (!m_initialized) return nullptr;
 
-    char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(char)];
-    memset(buffer, 0, sizeof(buffer));
-
-    SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(buffer);
-    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-    symbol->MaxNameLen = MAX_SYM_NAME;
-
-    if (SymFromName(m_process, decoratedName, symbol))
+    uint32_t rva = PdbParser::FindSymbolRVA(decoratedName);
+    if (rva == 0)
     {
-        return reinterpret_cast<void*>(symbol->Address);
+        LogUtil::Log("[LegacyForge] Symbol not found in PDB: '%s'", decoratedName);
+        return nullptr;
     }
 
-    printf("[LegacyForge] SymFromName failed for '%s' (error %lu)\n", decoratedName, GetLastError());
-    return nullptr;
+    return reinterpret_cast<void*>(m_moduleBase + rva);
 }
 
 bool SymbolResolver::ResolveGameFunctions()
 {
-    pRunStaticCtors = Resolve(SYM_RUN_STATIC_CTORS);
-    pMinecraftTick  = Resolve(SYM_MINECRAFT_TICK);
-    pMinecraftInit  = Resolve(SYM_MINECRAFT_INIT);
-    pExitGame       = Resolve(SYM_EXIT_GAME);
+    LogUtil::Log("[LegacyForge] Resolving game functions via raw PDB parser...");
 
-    if (pRunStaticCtors) printf("[LegacyForge] RunStaticCtors     @ %p\n", pRunStaticCtors);
-    else                 printf("[LegacyForge] MISSING: MinecraftWorld_RunStaticCtors\n");
+    pRunStaticCtors     = Resolve(SYM_RUN_STATIC_CTORS);
+    pMinecraftTick      = Resolve(SYM_MINECRAFT_TICK);
+    pMinecraftInit      = Resolve(SYM_MINECRAFT_INIT);
+    pExitGame           = Resolve(SYM_EXIT_GAME);
+    pCreativeStaticCtor = Resolve(SYM_CREATIVE_STATIC_CTOR);
+    pMainMenuCustomDraw = Resolve(SYM_MAINMENU_CUSTOMDRAW);
+    pPresent            = Resolve(SYM_PRESENT);
 
-    if (pMinecraftTick)  printf("[LegacyForge] Minecraft::tick    @ %p\n", pMinecraftTick);
-    else                 printf("[LegacyForge] MISSING: Minecraft::tick\n");
+    auto logSym = [](const char* name, void* ptr) {
+        if (ptr)
+            LogUtil::Log("[LegacyForge] %-25s @ %p", name, ptr);
+        else
+            LogUtil::Log("[LegacyForge] MISSING: %s", name);
+    };
 
-    if (pMinecraftInit)  printf("[LegacyForge] Minecraft::init    @ %p\n", pMinecraftInit);
-    else                 printf("[LegacyForge] MISSING: Minecraft::init\n");
+    logSym("RunStaticCtors",     pRunStaticCtors);
+    logSym("Minecraft::tick",    pMinecraftTick);
+    logSym("Minecraft::init",    pMinecraftInit);
+    logSym("ExitGame",           pExitGame);
+    logSym("CreativeStaticCtor", pCreativeStaticCtor);
+    logSym("MainMenuCustomDraw", pMainMenuCustomDraw);
+    logSym("C4JRender::Present", pPresent);
 
-    if (pExitGame)       printf("[LegacyForge] ExitGame           @ %p\n", pExitGame);
-    else                 printf("[LegacyForge] MISSING: CConsoleMinecraftApp::ExitGame\n");
+    bool ok = pRunStaticCtors && pMinecraftTick && pMinecraftInit;
+    if (ok)
+        LogUtil::Log("[LegacyForge] All critical symbols resolved (via raw PDB parser)");
+    else
+        LogUtil::Log("[LegacyForge] CRITICAL symbols missing - hooks will not be installed");
 
-    // RunStaticCtors, tick, and init are critical. ExitGame is optional (graceful shutdown).
-    return pRunStaticCtors && pMinecraftTick && pMinecraftInit;
+    return ok;
 }
 
 void SymbolResolver::Cleanup()
 {
-    if (m_initialized)
-    {
-        SymCleanup(m_process);
-        m_initialized = false;
-    }
+    PdbParser::Close();
+    m_initialized = false;
 }

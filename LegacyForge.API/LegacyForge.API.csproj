@@ -8,6 +8,9 @@
     <AssemblyName>LegacyForge.API</AssemblyName>
     <Description>Mod API for LegacyForge - Minecraft Legacy Edition mod loader</Description>
     <Version>1.0.0</Version>
+    <OutputPath>..\build</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
 </Project>

@@ -1,17 +1,36 @@
 cmake_minimum_required(VERSION 3.24)
+cmake_policy(SET CMP0091 NEW)
 project(LegacyForgeRuntime LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Use static release CRT (/MT) for all configs to:
+# 1. Avoid requiring MSVCP140.dll / VCRUNTIME140.dll / ucrtbase.dll at runtime
+# 2. Match libnethost.lib which is also built with /MT
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
 # ── MinHook (fetched from GitHub) ──────────────────────────────────────
 include(FetchContent)
 FetchContent_Declare(
     minhook
-    GIT_REPOSITORY https://github.com/TsudaKageworthy/minhook.git
-    GIT_TAG        master
+    GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
+    GIT_TAG        v1.3.4
 )
 FetchContent_MakeAvailable(minhook)
+
+# Ensure MinHook also uses static release CRT
+set_target_properties(minhook PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+# ── raw_pdb (fallback PDB parser for Wine/Proton) ────────────────────
+set(RAWPDB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    raw_pdb
+    GIT_REPOSITORY https://github.com/MolecularMatters/raw_pdb.git
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(raw_pdb)
+set_target_properties(raw_pdb PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 # ── Locate .NET hosting headers and libs ───────────────────────────────
 # Users can set DOTNET_ROOT or NETHOST_DIR; otherwise we try the default SDK path.
@@ -30,23 +49,36 @@ endif()
 if(NETHOST_DIR)
     message(STATUS "Using nethost from: ${NETHOST_DIR}")
     set(NETHOST_INCLUDE_DIR "${NETHOST_DIR}")
-    set(NETHOST_LIB "${NETHOST_DIR}/nethost.lib")
+    # Prefer static lib (libnethost.lib) to avoid requiring nethost.dll at runtime
+    if(EXISTS "${NETHOST_DIR}/libnethost.lib")
+        set(NETHOST_LIB "${NETHOST_DIR}/libnethost.lib")
+        set(NETHOST_STATIC TRUE)
+        message(STATUS "Using static nethost (libnethost.lib)")
+    elseif(EXISTS "${NETHOST_DIR}/nethost.lib")
+        set(NETHOST_LIB "${NETHOST_DIR}/nethost.lib")
+        set(NETHOST_STATIC FALSE)
+        message(STATUS "Using dynamic nethost (nethost.lib) -- nethost.dll must be deployed alongside")
+    endif()
 else()
-    message(STATUS "nethost not found automatically. Set NETHOST_DIR to the directory containing nethost.h and nethost.lib")
-    # Fall back to bundled headers if present
+    message(STATUS "nethost not found automatically. Set NETHOST_DIR to the directory containing nethost.h and libnethost.lib")
     set(NETHOST_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
     set(NETHOST_LIB "")
+    set(NETHOST_STATIC FALSE)
 endif()
 
 # ── Runtime DLL target ─────────────────────────────────────────────────
 add_library(LegacyForgeRuntime SHARED
     src/dllmain.cpp
+    src/LogUtil.cpp
+    src/PdbParser.cpp
     src/SymbolResolver.cpp
     src/HookManager.cpp
     src/GameHooks.cpp
     src/DotNetHost.cpp
     src/IdRegistry.cpp
     src/NativeExports.cpp
+    src/CreativeInventory.cpp
+    src/MainMenuOverlay.cpp
 )
 
 target_include_directories(LegacyForgeRuntime PRIVATE
@@ -55,13 +87,16 @@ target_include_directories(LegacyForgeRuntime PRIVATE
 
 target_link_libraries(LegacyForgeRuntime PRIVATE
     minhook
-    dbghelp
+    raw_pdb
 )
 
 if(EXISTS "${NETHOST_LIB}")
     target_link_libraries(LegacyForgeRuntime PRIVATE "${NETHOST_LIB}")
+    if(NETHOST_STATIC)
+        target_compile_definitions(LegacyForgeRuntime PRIVATE NETHOST_USE_AS_STATIC)
+    endif()
 else()
-    message(WARNING "nethost.lib not found. You may need to set NETHOST_DIR.")
+    message(WARNING "nethost lib not found. You may need to set NETHOST_DIR.")
 endif()
 
 target_compile_definitions(LegacyForgeRuntime PRIVATE
@@ -74,6 +109,10 @@ if(MSVC)
 endif()
 
 set_target_properties(LegacyForgeRuntime PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../build"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../build"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/../build"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../build"
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/../build"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../build"
 )

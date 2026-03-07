@@ -9,7 +9,7 @@ namespace DotNetHost
     void Cleanup();
 
     void CallManagedInit();
-    void CallDiscoverMods(const char* modsPath);
+    int  CallDiscoverMods(const char* modsPath);
     void CallPreInit();
     void CallInit();
     void CallPostInit();

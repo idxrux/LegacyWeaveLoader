@@ -1,5 +1,7 @@
 #include "NativeExports.h"
 #include "IdRegistry.h"
+#include "CreativeInventory.h"
+#include "LogUtil.h"
 #include <cstdio>
 #include <cstring>
 
@@ -98,7 +100,7 @@ void native_add_furnace_recipe(
 void native_log(const char* message, int level)
 {
     if (message)
-        printf("%s\n", message);
+        LogUtil::Log("%s", message);
 }
 
 int native_get_block_id(const char* namespacedId)
@@ -123,6 +125,11 @@ void native_subscribe_event(const char* eventName, void* managedFnPtr)
 {
     // TODO: Store managed callback pointers and invoke from game hooks
     printf("[LegacyForge] Event subscription: %s\n", eventName ? eventName : "(null)");
+}
+
+void native_add_to_creative(int numericId, int count, int auxValue, int groupIndex)
+{
+    CreativeInventory::AddPending(numericId, count, auxValue, groupIndex);
 }
 
 } // extern "C"
