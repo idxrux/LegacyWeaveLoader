@@ -1,7 +1,7 @@
 #include "DotNetHost.h"
 #include "LogUtil.h"
 
-#include <Windows.h>
+#include <windows.h>
 #include <nethost.h>
 #include <hostfxr.h>
 #include <coreclr_delegates.h>
@@ -58,7 +58,9 @@ static load_assembly_and_get_function_pointer_fn GetDotNetLoadAssembly(const wch
     int rc = init_fptr(configPath, nullptr, &cxt);
     if (rc != 0 || cxt == nullptr)
     {
-        LogUtil::Log("[WeaveLoader] hostfxr_initialize failed: 0x%x", rc);
+        char pathA[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, configPath, -1, pathA, MAX_PATH, nullptr, nullptr);
+        LogUtil::Log("[WeaveLoader] hostfxr_initialize failed: 0x%x (config: %s)", rc, pathA);
         if (cxt) close_fptr(cxt);
         return nullptr;
     }
@@ -88,6 +90,12 @@ static bool ResolveManagedMethod(
         nullptr,
         reinterpret_cast<void**>(outFn));
 
+    if (rc != 0)
+    {
+        char nameA[64];
+        WideCharToMultiByte(CP_UTF8, 0, methodName, -1, nameA, sizeof(nameA), nullptr, nullptr);
+        LogUtil::Log("[WeaveLoader] load_assembly_and_get_function_pointer('%s') failed: 0x%x", nameA, rc);
+    }
     return rc == 0 && *outFn != nullptr;
 }
 
@@ -126,6 +134,23 @@ bool DotNetHost::Initialize()
     std::wstring configPath = selfDir + L"WeaveLoader.Core.runtimeconfig.json";
     std::wstring assemblyPath = selfDir + L"WeaveLoader.Core.dll";
 
+    if (GetFileAttributesW(assemblyPath.c_str()) == INVALID_FILE_ATTRIBUTES)
+    {
+        char pathA[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, assemblyPath.c_str(), -1, pathA, MAX_PATH, nullptr, nullptr);
+        LogUtil::Log("[WeaveLoader] WeaveLoader.Core.dll not found at: %s", pathA);
+        LogUtil::Log("[WeaveLoader] Copy WeaveLoader.Core.dll, WeaveLoader.API.dll, and "
+                     "WeaveLoader.Core.runtimeconfig.json to the same folder as WeaveLoaderRuntime.dll");
+        return false;
+    }
+    if (GetFileAttributesW(configPath.c_str()) == INVALID_FILE_ATTRIBUTES)
+    {
+        char pathA[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, configPath.c_str(), -1, pathA, MAX_PATH, nullptr, nullptr);
+        LogUtil::Log("[WeaveLoader] WeaveLoader.Core.runtimeconfig.json not found at: %s", pathA);
+        return false;
+    }
+
     auto load_fn = GetDotNetLoadAssembly(configPath.c_str());
     if (!load_fn)
     {
@@ -133,18 +158,30 @@ bool DotNetHost::Initialize()
         return false;
     }
 
+    auto resolve = [&](const wchar_t* name, managed_entry_fn* out) -> bool {
+        bool r = ResolveManagedMethod(load_fn, assemblyPath.c_str(), name, out);
+        if (!r)
+        {
+            char nameA[64];
+            WideCharToMultiByte(CP_UTF8, 0, name, -1, nameA, sizeof(nameA), nullptr, nullptr);
+            LogUtil::Log("[WeaveLoader] Failed to resolve: %s", nameA);
+        }
+        return r;
+    };
+
     bool ok = true;
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"Initialize", &fn_Initialize);
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"DiscoverMods", &fn_DiscoverMods);
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"PreInit", &fn_PreInit);
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"Init", &fn_Init);
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"PostInit", &fn_PostInit);
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"Tick", &fn_Tick);
-    ok &= ResolveManagedMethod(load_fn, assemblyPath.c_str(), L"Shutdown", &fn_Shutdown);
+    ok &= resolve(L"Initialize", &fn_Initialize);
+    ok &= resolve(L"DiscoverMods", &fn_DiscoverMods);
+    ok &= resolve(L"PreInit", &fn_PreInit);
+    ok &= resolve(L"Init", &fn_Init);
+    ok &= resolve(L"PostInit", &fn_PostInit);
+    ok &= resolve(L"Tick", &fn_Tick);
+    ok &= resolve(L"Shutdown", &fn_Shutdown);
 
     if (!ok)
     {
-        LogUtil::Log("[WeaveLoader] Failed to resolve one or more managed entry points");
+        LogUtil::Log("[WeaveLoader] Failed to resolve one or more managed entry points. "
+                     "Ensure .NET 8 runtime is installed and WeaveLoader.Core.dll is built for net8.0.");
         return false;
     }
 

@@ -15,6 +15,7 @@ void* pVectorPushBack = nullptr;
 void* pSpecs = nullptr;
 
 std::vector<PendingCreativeItem> s_pendingItems;
+static bool s_didInjectItems = false;
 
 static const int CREATIVE_GROUP_COUNT = 15;
 static const int SIZEOF_MSVC_VECTOR = 24;
@@ -102,6 +103,12 @@ static size_t ReadVectorSize(char* vec)
 
 void UpdateTabPageCounts()
 {
+    if (!s_didInjectItems)
+    {
+        LogUtil::Log("[WeaveLoader] Skipping tab page count update (no mod items injected)");
+        return;
+    }
+
     if (!pSpecs || !pCategoryGroups)
     {
         LogUtil::Log("[WeaveLoader] Cannot update tab page counts: specs=%p categoryGroups=%p",
@@ -165,9 +172,11 @@ void InjectItems()
     if (s_pendingItems.empty())
     {
         LogUtil::Log("[WeaveLoader] No creative items to inject");
+        s_didInjectItems = false;
         return;
     }
 
+    s_didInjectItems = true;
     auto ctorFn = reinterpret_cast<ItemInstanceCtor_fn>(pItemInstanceCtor);
     auto spCtorFn = reinterpret_cast<SharedPtrCtor_fn>(pSharedPtrCtor);
     auto pushFn = reinterpret_cast<VectorPushBackMove_fn>(pVectorPushBack);
