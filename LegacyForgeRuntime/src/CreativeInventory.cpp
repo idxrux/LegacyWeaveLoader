@@ -1,6 +1,6 @@
 #include "CreativeInventory.h"
 #include "SymbolResolver.h"
-#include <cstdio>
+#include "LogUtil.h"
 #include <cstring>
 
 namespace CreativeInventory
@@ -25,7 +25,7 @@ typedef void (__fastcall *VectorPushBackMove_fn)(void* vectorThis, void* sharedP
 void AddPending(int itemId, int count, int auxValue, int groupIndex)
 {
     s_pendingItems.push_back({ itemId, count, auxValue, groupIndex });
-    printf("[LegacyForge] Queued creative item: id=%d group=%d\n", itemId, groupIndex);
+    LogUtil::Log("[LegacyForge] Queued creative item: id=%d group=%d", itemId, groupIndex);
 }
 
 bool ResolveSymbols(SymbolResolver& resolver)
@@ -43,17 +43,17 @@ bool ResolveSymbols(SymbolResolver& resolver)
         "?push_back@?$vector@V?$shared_ptr@VItemInstance@@@std@@V?$allocator@V?$shared_ptr@VItemInstance@@@std@@@2@@std@@"
         "QEAAX$$QEAV?$shared_ptr@VItemInstance@@@2@@Z");
 
-    if (pCategoryGroups)  printf("[LegacyForge] categoryGroups       @ %p\n", pCategoryGroups);
-    else                  printf("[LegacyForge] MISSING: categoryGroups\n");
+    if (pCategoryGroups)  LogUtil::Log("[LegacyForge] categoryGroups       @ %p", pCategoryGroups);
+    else                  LogUtil::Log("[LegacyForge] MISSING: categoryGroups");
 
-    if (pItemInstanceCtor) printf("[LegacyForge] ItemInstance ctor     @ %p\n", pItemInstanceCtor);
-    else                   printf("[LegacyForge] MISSING: ItemInstance(int,int,int)\n");
+    if (pItemInstanceCtor) LogUtil::Log("[LegacyForge] ItemInstance ctor     @ %p", pItemInstanceCtor);
+    else                   LogUtil::Log("[LegacyForge] MISSING: ItemInstance(int,int,int)");
 
-    if (pSharedPtrCtor)   printf("[LegacyForge] shared_ptr<II> ctor   @ %p\n", pSharedPtrCtor);
-    else                  printf("[LegacyForge] MISSING: shared_ptr<ItemInstance>(ItemInstance*)\n");
+    if (pSharedPtrCtor)   LogUtil::Log("[LegacyForge] shared_ptr<II> ctor   @ %p", pSharedPtrCtor);
+    else                  LogUtil::Log("[LegacyForge] MISSING: shared_ptr<ItemInstance>(ItemInstance*)");
 
-    if (pVectorPushBack)  printf("[LegacyForge] vector::push_back     @ %p\n", pVectorPushBack);
-    else                  printf("[LegacyForge] MISSING: vector<shared_ptr<II>>::push_back\n");
+    if (pVectorPushBack)  LogUtil::Log("[LegacyForge] vector::push_back     @ %p", pVectorPushBack);
+    else                  LogUtil::Log("[LegacyForge] MISSING: vector<shared_ptr<II>>::push_back");
 
     return pCategoryGroups && pItemInstanceCtor && pSharedPtrCtor && pVectorPushBack;
 }
@@ -62,13 +62,13 @@ void InjectItems()
 {
     if (!pCategoryGroups || !pItemInstanceCtor || !pSharedPtrCtor || !pVectorPushBack)
     {
-        printf("[LegacyForge] Cannot inject creative items: missing symbols\n");
+        LogUtil::Log("[LegacyForge] Cannot inject creative items: missing symbols");
         return;
     }
 
     if (s_pendingItems.empty())
     {
-        printf("[LegacyForge] No creative items to inject\n");
+        LogUtil::Log("[LegacyForge] No creative items to inject");
         return;
     }
 
@@ -82,8 +82,8 @@ void InjectItems()
     {
         if (item.groupIndex < 0 || item.groupIndex >= CREATIVE_GROUP_COUNT)
         {
-            printf("[LegacyForge] Skipping creative item id=%d: invalid group %d\n",
-                   item.itemId, item.groupIndex);
+            LogUtil::Log("[LegacyForge] Skipping creative item id=%d: invalid group %d",
+                         item.itemId, item.groupIndex);
             continue;
         }
 
@@ -98,11 +98,11 @@ void InjectItems()
         char* vec = groups + item.groupIndex * SIZEOF_MSVC_VECTOR;
         pushFn(vec, spBuf);
 
-        printf("[LegacyForge] Injected item id=%d into creative group %d\n",
-               item.itemId, item.groupIndex);
+        LogUtil::Log("[LegacyForge] Injected item id=%d into creative group %d",
+                     item.itemId, item.groupIndex);
     }
 
-    printf("[LegacyForge] Injected %zu items into creative inventory\n", s_pendingItems.size());
+    LogUtil::Log("[LegacyForge] Injected %zu items into creative inventory", s_pendingItems.size());
     s_pendingItems.clear();
 }
 

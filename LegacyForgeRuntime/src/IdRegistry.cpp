@@ -1,5 +1,5 @@
 #include "IdRegistry.h"
-#include <cstdio>
+#include "LogUtil.h"
 
 IdRegistry& IdRegistry::Instance()
 {
@@ -34,14 +34,13 @@ int IdRegistry::Register(Type type, const std::string& namespacedId)
 
     if (reg.nextFreeId > maxId)
     {
-        printf("[LegacyForge] IdRegistry: No free IDs for type %d (max %d)\n",
-               static_cast<int>(type), maxId);
+        LogUtil::Log("[LegacyForge] IdRegistry: No free IDs for type %d (max %d)",
+                     static_cast<int>(type), maxId);
         return -1;
     }
 
     int id = reg.nextFreeId++;
 
-    // Skip IDs that are already taken by vanilla entries
     while (reg.numToString.count(id) && id <= maxId)
         id = reg.nextFreeId++;
 

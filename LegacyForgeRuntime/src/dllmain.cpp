@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <string>
 #include "LogUtil.h"
+#include "CrashHandler.h"
 #include "SymbolResolver.h"
 #include "HookManager.h"
 #include "DotNetHost.h"
@@ -22,10 +23,9 @@ static std::string GetDllDirectory(HMODULE hModule)
 
 DWORD WINAPI InitThread(LPVOID lpParam)
 {
-    std::string baseDir = GetDllDirectory(g_hModule);
-    LogUtil::SetBaseDir(baseDir.c_str());
-
     LogUtil::Log("[LegacyForge] InitThread started (module=%p)", g_hModule);
+
+    std::string baseDir = GetDllDirectory(g_hModule);
     LogUtil::Log("[LegacyForge] Runtime DLL directory: %s", baseDir.c_str());
 
     char cwd[MAX_PATH] = {0};
@@ -59,7 +59,6 @@ DWORD WINAPI InitThread(LPVOID lpParam)
     }
     LogUtil::Log("[LegacyForge] Hooks installed");
 
-    // All symbol resolution is complete; release the PDB memory map
     symbols.Cleanup();
 
     if (!DotNetHost::Initialize())
@@ -87,6 +86,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     case DLL_PROCESS_ATTACH:
         g_hModule = hModule;
         DisableThreadLibraryCalls(hModule);
+
+        // Set up logging and crash handler BEFORE anything else.
+        // These must work immediately so we catch crashes during init.
+        {
+            std::string baseDir = GetDllDirectory(hModule);
+            LogUtil::SetBaseDir(baseDir.c_str());
+            CrashHandler::Install(hModule);
+        }
+
         CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr);
         break;
 

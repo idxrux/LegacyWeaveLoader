@@ -70,6 +70,7 @@ endif()
 add_library(LegacyForgeRuntime SHARED
     src/dllmain.cpp
     src/LogUtil.cpp
+    src/CrashHandler.cpp
     src/PdbParser.cpp
     src/SymbolResolver.cpp
     src/HookManager.cpp

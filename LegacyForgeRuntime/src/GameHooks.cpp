@@ -2,7 +2,9 @@
 #include "DotNetHost.h"
 #include "CreativeInventory.h"
 #include "MainMenuOverlay.h"
+#include "LogUtil.h"
 #include <cstdio>
+#include <cstring>
 
 namespace GameHooks
 {
@@ -13,15 +15,16 @@ namespace GameHooks
     CreativeStaticCtor_fn Original_CreativeStaticCtor = nullptr;
     MainMenuCustomDraw_fn Original_MainMenuCustomDraw = nullptr;
     Present_fn            Original_Present = nullptr;
+    OutputDebugStringA_fn Original_OutputDebugStringA = nullptr;
 
     void Hooked_RunStaticCtors()
     {
-        printf("[LegacyForge] Hook: RunStaticCtors -- calling PreInit\n");
+        LogUtil::Log("[LegacyForge] Hook: RunStaticCtors -- calling PreInit");
         DotNetHost::CallPreInit();
 
         Original_RunStaticCtors();
 
-        printf("[LegacyForge] Hook: RunStaticCtors complete -- calling Init\n");
+        LogUtil::Log("[LegacyForge] Hook: RunStaticCtors complete -- calling Init");
         DotNetHost::CallInit();
     }
 
@@ -39,13 +42,13 @@ namespace GameHooks
     {
         Original_MinecraftInit(thisPtr);
 
-        printf("[LegacyForge] Hook: Minecraft::init complete -- calling PostInit\n");
+        LogUtil::Log("[LegacyForge] Hook: Minecraft::init complete -- calling PostInit");
         DotNetHost::CallPostInit();
     }
 
     void __fastcall Hooked_ExitGame(void* thisPtr)
     {
-        printf("[LegacyForge] Hook: ExitGame -- calling Shutdown\n");
+        LogUtil::Log("[LegacyForge] Hook: ExitGame -- calling Shutdown");
         DotNetHost::CallShutdown();
 
         Original_ExitGame(thisPtr);
@@ -53,10 +56,10 @@ namespace GameHooks
 
     void Hooked_CreativeStaticCtor()
     {
-        printf("[LegacyForge] Hook: CreativeStaticCtor -- building vanilla creative lists\n");
+        LogUtil::Log("[LegacyForge] Hook: CreativeStaticCtor -- building vanilla creative lists");
         Original_CreativeStaticCtor();
 
-        printf("[LegacyForge] Hook: CreativeStaticCtor -- injecting modded items\n");
+        LogUtil::Log("[LegacyForge] Hook: CreativeStaticCtor -- injecting modded items");
         CreativeInventory::InjectItems();
     }
 
@@ -70,5 +73,21 @@ namespace GameHooks
     {
         MainMenuOverlay::RenderBranding();
         Original_Present(thisPtr);
+    }
+
+    void WINAPI Hooked_OutputDebugStringA(const char* lpOutputString)
+    {
+        if (lpOutputString && lpOutputString[0] != '\0')
+        {
+            // Strip trailing newlines/carriage returns for clean log output
+            size_t len = strlen(lpOutputString);
+            while (len > 0 && (lpOutputString[len - 1] == '\n' || lpOutputString[len - 1] == '\r'))
+                len--;
+
+            if (len > 0)
+                LogUtil::LogGameOutput(lpOutputString, len);
+        }
+
+        Original_OutputDebugStringA(lpOutputString);
     }
 }

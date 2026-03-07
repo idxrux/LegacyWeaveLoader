@@ -1,4 +1,5 @@
 #pragma once
+#include <Windows.h>
 #include <cstdint>
 
 /// Function pointer typedefs matching the game's actual function signatures.
@@ -11,6 +12,7 @@ typedef void (__fastcall *ExitGame_fn)(void* thisPtr);
 typedef void (*CreativeStaticCtor_fn)();
 typedef void (__fastcall *MainMenuCustomDraw_fn)(void* thisPtr, void* region);
 typedef void (__fastcall *Present_fn)(void* thisPtr);
+typedef void (WINAPI *OutputDebugStringA_fn)(const char* lpOutputString);
 
 namespace GameHooks
 {
@@ -21,6 +23,7 @@ namespace GameHooks
     extern CreativeStaticCtor_fn  Original_CreativeStaticCtor;
     extern MainMenuCustomDraw_fn  Original_MainMenuCustomDraw;
     extern Present_fn             Original_Present;
+    extern OutputDebugStringA_fn  Original_OutputDebugStringA;
 
     void Hooked_RunStaticCtors();
     void __fastcall Hooked_MinecraftTick(void* thisPtr, bool bFirst, bool bUpdateTextures);
@@ -29,4 +32,5 @@ namespace GameHooks
     void Hooked_CreativeStaticCtor();
     void __fastcall Hooked_MainMenuCustomDraw(void* thisPtr, void* region);
     void __fastcall Hooked_Present(void* thisPtr);
+    void WINAPI Hooked_OutputDebugStringA(const char* lpOutputString);
 }

@@ -1,19 +1,18 @@
 #include "DotNetHost.h"
+#include "LogUtil.h"
 
 #include <Windows.h>
 #include <nethost.h>
 #include <hostfxr.h>
 #include <coreclr_delegates.h>
 
-#include <cstdio>
+#include <cstring>
 #include <string>
 
-// hostfxr function pointers
 static hostfxr_initialize_for_runtime_config_fn init_fptr = nullptr;
 static hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
 static hostfxr_close_fn close_fptr = nullptr;
 
-// Managed entry points (component_entry_point_fn signature)
 typedef int (CORECLR_DELEGATE_CALLTYPE *managed_entry_fn)(void* args, int sizeBytes);
 
 static managed_entry_fn fn_Initialize = nullptr;
@@ -32,14 +31,14 @@ static bool LoadHostfxr()
     int rc = get_hostfxr_path(buffer, &buffer_size, nullptr);
     if (rc != 0)
     {
-        printf("[LegacyForge] get_hostfxr_path failed: 0x%x\n", rc);
+        LogUtil::Log("[LegacyForge] get_hostfxr_path failed: 0x%x", rc);
         return false;
     }
 
     HMODULE lib = LoadLibraryW(buffer);
     if (!lib)
     {
-        printf("[LegacyForge] Failed to load hostfxr\n");
+        LogUtil::Log("[LegacyForge] Failed to load hostfxr");
         return false;
     }
 
@@ -59,7 +58,7 @@ static load_assembly_and_get_function_pointer_fn GetDotNetLoadAssembly(const wch
     int rc = init_fptr(configPath, nullptr, &cxt);
     if (rc != 0 || cxt == nullptr)
     {
-        printf("[LegacyForge] hostfxr_initialize failed: 0x%x\n", rc);
+        LogUtil::Log("[LegacyForge] hostfxr_initialize failed: 0x%x", rc);
         if (cxt) close_fptr(cxt);
         return nullptr;
     }
@@ -68,7 +67,7 @@ static load_assembly_and_get_function_pointer_fn GetDotNetLoadAssembly(const wch
     rc = get_delegate_fptr(cxt, hdt_load_assembly_and_get_function_pointer, &load_fn);
     if (rc != 0 || load_fn == nullptr)
     {
-        printf("[LegacyForge] hostfxr_get_runtime_delegate failed: 0x%x\n", rc);
+        LogUtil::Log("[LegacyForge] hostfxr_get_runtime_delegate failed: 0x%x", rc);
     }
 
     close_fptr(cxt);
@@ -85,7 +84,7 @@ static bool ResolveManagedMethod(
         assemblyPath,
         L"LegacyForge.Core.LegacyForgeCore, LegacyForge.Core",
         methodName,
-        nullptr,   // delegate_type_name (null = default component_entry_point_fn)
+        nullptr,
         nullptr,
         reinterpret_cast<void**>(outFn));
 
@@ -96,11 +95,10 @@ bool DotNetHost::Initialize()
 {
     if (!LoadHostfxr())
     {
-        printf("[LegacyForge] Failed to load hostfxr library\n");
+        LogUtil::Log("[LegacyForge] Failed to load hostfxr library");
         return false;
     }
 
-    // Paths relative to the runtime DLL (which is in the same dir as LegacyForge.Core.dll)
     wchar_t modulePath[MAX_PATH];
     GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
 
@@ -111,7 +109,6 @@ bool DotNetHost::Initialize()
     else
         exeDir = L".\\";
 
-    // Look for LegacyForge files next to the runtime DLL, not the game exe
     HMODULE hSelf = nullptr;
     GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -132,7 +129,7 @@ bool DotNetHost::Initialize()
     auto load_fn = GetDotNetLoadAssembly(configPath.c_str());
     if (!load_fn)
     {
-        printf("[LegacyForge] Failed to get load_assembly_and_get_function_pointer\n");
+        LogUtil::Log("[LegacyForge] Failed to get load_assembly_and_get_function_pointer");
         return false;
     }
 
@@ -147,11 +144,11 @@ bool DotNetHost::Initialize()
 
     if (!ok)
     {
-        printf("[LegacyForge] Failed to resolve one or more managed entry points\n");
+        LogUtil::Log("[LegacyForge] Failed to resolve one or more managed entry points");
         return false;
     }
 
-    printf("[LegacyForge] All managed entry points resolved\n");
+    LogUtil::Log("[LegacyForge] All managed entry points resolved");
     return true;
 }
 

@@ -3,72 +3,67 @@
 #include "SymbolResolver.h"
 #include "CreativeInventory.h"
 #include "MainMenuOverlay.h"
+#include "LogUtil.h"
 #include <MinHook.h>
-#include <cstdio>
 
 bool HookManager::Install(const SymbolResolver& symbols)
 {
     if (MH_Initialize() != MH_OK)
     {
-        printf("[LegacyForge] MH_Initialize failed\n");
+        LogUtil::Log("[LegacyForge] MH_Initialize failed");
         return false;
     }
 
-    // Hook MinecraftWorld_RunStaticCtors
     if (symbols.pRunStaticCtors)
     {
         if (MH_CreateHook(symbols.pRunStaticCtors,
                           reinterpret_cast<void*>(&GameHooks::Hooked_RunStaticCtors),
                           reinterpret_cast<void**>(&GameHooks::Original_RunStaticCtors)) != MH_OK)
         {
-            printf("[LegacyForge] Failed to hook RunStaticCtors\n");
+            LogUtil::Log("[LegacyForge] Failed to hook RunStaticCtors");
             return false;
         }
-        printf("[LegacyForge] Hooked RunStaticCtors\n");
+        LogUtil::Log("[LegacyForge] Hooked RunStaticCtors");
     }
 
-    // Hook Minecraft::tick
     if (symbols.pMinecraftTick)
     {
         if (MH_CreateHook(symbols.pMinecraftTick,
                           reinterpret_cast<void*>(&GameHooks::Hooked_MinecraftTick),
                           reinterpret_cast<void**>(&GameHooks::Original_MinecraftTick)) != MH_OK)
         {
-            printf("[LegacyForge] Failed to hook Minecraft::tick\n");
+            LogUtil::Log("[LegacyForge] Failed to hook Minecraft::tick");
             return false;
         }
-        printf("[LegacyForge] Hooked Minecraft::tick\n");
+        LogUtil::Log("[LegacyForge] Hooked Minecraft::tick");
     }
 
-    // Hook Minecraft::init
     if (symbols.pMinecraftInit)
     {
         if (MH_CreateHook(symbols.pMinecraftInit,
                           reinterpret_cast<void*>(&GameHooks::Hooked_MinecraftInit),
                           reinterpret_cast<void**>(&GameHooks::Original_MinecraftInit)) != MH_OK)
         {
-            printf("[LegacyForge] Failed to hook Minecraft::init\n");
+            LogUtil::Log("[LegacyForge] Failed to hook Minecraft::init");
             return false;
         }
-        printf("[LegacyForge] Hooked Minecraft::init\n");
+        LogUtil::Log("[LegacyForge] Hooked Minecraft::init");
     }
 
-    // Hook CConsoleMinecraftApp::ExitGame
     if (symbols.pExitGame)
     {
         if (MH_CreateHook(symbols.pExitGame,
                           reinterpret_cast<void*>(&GameHooks::Hooked_ExitGame),
                           reinterpret_cast<void**>(&GameHooks::Original_ExitGame)) != MH_OK)
         {
-            printf("[LegacyForge] Warning: Failed to hook ExitGame (shutdown hook unavailable)\n");
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook ExitGame (shutdown hook unavailable)");
         }
         else
         {
-            printf("[LegacyForge] Hooked ExitGame\n");
+            LogUtil::Log("[LegacyForge] Hooked ExitGame");
         }
     }
 
-    // Hook IUIScene_CreativeMenu::staticCtor
     if (symbols.pCreativeStaticCtor)
     {
         CreativeInventory::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
@@ -77,30 +72,28 @@ bool HookManager::Install(const SymbolResolver& symbols)
                           reinterpret_cast<void*>(&GameHooks::Hooked_CreativeStaticCtor),
                           reinterpret_cast<void**>(&GameHooks::Original_CreativeStaticCtor)) != MH_OK)
         {
-            printf("[LegacyForge] Warning: Failed to hook CreativeStaticCtor\n");
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook CreativeStaticCtor");
         }
         else
         {
-            printf("[LegacyForge] Hooked CreativeStaticCtor\n");
+            LogUtil::Log("[LegacyForge] Hooked CreativeStaticCtor");
         }
     }
 
-    // Hook UIScene_MainMenu::customDraw (sets main-menu detection flag)
     if (symbols.pMainMenuCustomDraw)
     {
         if (MH_CreateHook(symbols.pMainMenuCustomDraw,
                           reinterpret_cast<void*>(&GameHooks::Hooked_MainMenuCustomDraw),
                           reinterpret_cast<void**>(&GameHooks::Original_MainMenuCustomDraw)) != MH_OK)
         {
-            printf("[LegacyForge] Warning: Failed to hook MainMenuCustomDraw\n");
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook MainMenuCustomDraw");
         }
         else
         {
-            printf("[LegacyForge] Hooked MainMenuCustomDraw\n");
+            LogUtil::Log("[LegacyForge] Hooked MainMenuCustomDraw");
         }
     }
 
-    // Hook C4JRender::Present (draws branding overlay just before frame present)
     if (symbols.pPresent)
     {
         MainMenuOverlay::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
@@ -109,21 +102,39 @@ bool HookManager::Install(const SymbolResolver& symbols)
                           reinterpret_cast<void*>(&GameHooks::Hooked_Present),
                           reinterpret_cast<void**>(&GameHooks::Original_Present)) != MH_OK)
         {
-            printf("[LegacyForge] Warning: Failed to hook C4JRender::Present\n");
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook C4JRender::Present");
         }
         else
         {
-            printf("[LegacyForge] Hooked C4JRender::Present\n");
+            LogUtil::Log("[LegacyForge] Hooked C4JRender::Present");
+        }
+    }
+
+    {
+        void* pOutputDbgStr = reinterpret_cast<void*>(
+            GetProcAddress(GetModuleHandleA("kernel32.dll"), "OutputDebugStringA"));
+        if (pOutputDbgStr)
+        {
+            if (MH_CreateHook(pOutputDbgStr,
+                              reinterpret_cast<void*>(&GameHooks::Hooked_OutputDebugStringA),
+                              reinterpret_cast<void**>(&GameHooks::Original_OutputDebugStringA)) != MH_OK)
+            {
+                LogUtil::Log("[LegacyForge] Warning: Failed to hook OutputDebugStringA");
+            }
+            else
+            {
+                LogUtil::Log("[LegacyForge] Hooked OutputDebugStringA (game log capture)");
+            }
         }
     }
 
     if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK)
     {
-        printf("[LegacyForge] MH_EnableHook(MH_ALL_HOOKS) failed\n");
+        LogUtil::Log("[LegacyForge] MH_EnableHook(MH_ALL_HOOKS) failed");
         return false;
     }
 
-    printf("[LegacyForge] All hooks installed and enabled\n");
+    LogUtil::Log("[LegacyForge] All hooks installed and enabled");
     return true;
 }
 
