@@ -12,6 +12,12 @@ static const char* SYM_EXIT_GAME            = "?ExitGame@CConsoleMinecraftApp@@U
 static const char* SYM_CREATIVE_STATIC_CTOR = "?staticCtor@IUIScene_CreativeMenu@@SAXXZ";
 static const char* SYM_MAINMENU_CUSTOMDRAW  = "?customDraw@UIScene_MainMenu@@UEAAXPEAUIggyCustomDrawCallbackRegion@@@Z";
 static const char* SYM_PRESENT              = "?Present@C4JRender@@QEAAXXZ";
+static const char* SYM_GET_STRING           = "?GetString@CMinecraftApp@@SAPEB_WH@Z";
+static const char* SYM_GET_RESOURCE_AS_STREAM = "?getResourceAsStream@InputStream@@SAPEAV1@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@Z";
+static const char* SYM_LOAD_UVS = "?loadUVs@PreStitchedTextureMap@@AEAAXXZ";
+static const char* SYM_SIMPLE_ICON_CTOR = "??0SimpleIcon@@QEAA@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@0MMMM@Z";
+static const char* SYM_OPERATOR_NEW = "??2@YAPEAX_K@Z";
+static const char* SYM_REGISTER_ICON = "?registerIcon@PreStitchedTextureMap@@UEAAPEAVIcon@@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@Z";
 
 bool SymbolResolver::Initialize()
 {
@@ -70,6 +76,17 @@ bool SymbolResolver::ResolveGameFunctions()
     pCreativeStaticCtor = Resolve(SYM_CREATIVE_STATIC_CTOR);
     pMainMenuCustomDraw = Resolve(SYM_MAINMENU_CUSTOMDRAW);
     pPresent            = Resolve(SYM_PRESENT);
+    pGetString          = Resolve(SYM_GET_STRING);
+    pGetResourceAsStream = Resolve(SYM_GET_RESOURCE_AS_STREAM);
+    pLoadUVs             = Resolve(SYM_LOAD_UVS);
+    pSimpleIconCtor      = Resolve(SYM_SIMPLE_ICON_CTOR);
+    pOperatorNew         = Resolve(SYM_OPERATOR_NEW);
+    pRegisterIcon        = Resolve(SYM_REGISTER_ICON);
+    if (!pOperatorNew)   pOperatorNew = GetProcAddress(GetModuleHandleA("vcruntime140.dll"), SYM_OPERATOR_NEW);
+    if (!pOperatorNew)   pOperatorNew = GetProcAddress(GetModuleHandleA("vcruntime140d.dll"), SYM_OPERATOR_NEW);
+    if (!pOperatorNew)   pOperatorNew = GetProcAddress(GetModuleHandle(nullptr), SYM_OPERATOR_NEW);
+    if (!pSimpleIconCtor) PdbParser::DumpMatching("??0SimpleIcon@@");
+    if (!pLoadUVs)        PdbParser::DumpMatching("loadUVs@PreStitchedTextureMap");
 
     auto logSym = [](const char* name, void* ptr) {
         if (ptr)
@@ -85,6 +102,12 @@ bool SymbolResolver::ResolveGameFunctions()
     logSym("CreativeStaticCtor", pCreativeStaticCtor);
     logSym("MainMenuCustomDraw", pMainMenuCustomDraw);
     logSym("C4JRender::Present", pPresent);
+    logSym("CMinecraftApp::GetString", pGetString);
+    logSym("InputStream::getResourceAsStream", pGetResourceAsStream);
+    logSym("PreStitchedTextureMap::loadUVs", pLoadUVs);
+    logSym("SimpleIcon::SimpleIcon", pSimpleIconCtor);
+    logSym("operator new", pOperatorNew);
+    logSym("registerIcon", pRegisterIcon);
 
     bool ok = pRunStaticCtors && pMinecraftTick && pMinecraftInit;
     if (ok)

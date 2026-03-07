@@ -8,13 +8,20 @@
     <AssemblyName>ExampleMod</AssemblyName>
     <Description>Example mod for LegacyForge demonstrating the mod API</Description>
     <Version>1.0.0</Version>
-    <OutputPath>..\build\mods</OutputPath>
+    <OutputPath>..\build\mods\ExampleMod</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LegacyForge.API\LegacyForge.API.csproj" />
+    <!-- Private=false: do not copy LegacyForge.API into ExampleMod. API lives in mods/LegacyForge.API/ -->
+    <ProjectReference Include="..\LegacyForge.API\LegacyForge.API.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="assets\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -22,6 +22,15 @@ FetchContent_MakeAvailable(minhook)
 # Ensure MinHook also uses static release CRT
 set_target_properties(minhook PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
+# ── stb_image (PNG load/save for mod atlas) ───────────────────────────
+set(STB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb")
+if(NOT EXISTS "${STB_DIR}/stb_image.h")
+    message(WARNING "stb_image.h not found. Run: curl -sL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h -o third_party/stb/stb_image.h")
+endif()
+if(NOT EXISTS "${STB_DIR}/stb_image_write.h")
+    message(WARNING "stb_image_write.h not found. Run: curl -sL https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h -o third_party/stb/stb_image_write.h")
+endif()
+
 # ── raw_pdb (fallback PDB parser for Wine/Proton) ────────────────────
 set(RAWPDB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
@@ -81,10 +90,13 @@ add_library(LegacyForgeRuntime SHARED
     src/CreativeInventory.cpp
     src/MainMenuOverlay.cpp
     src/GameObjectFactory.cpp
+    src/ModStrings.cpp
+    src/ModAtlas.cpp
 )
 
 target_include_directories(LegacyForgeRuntime PRIVATE
     "${NETHOST_INCLUDE_DIR}"
+    "${STB_DIR}"
 )
 
 target_link_libraries(LegacyForgeRuntime PRIVATE

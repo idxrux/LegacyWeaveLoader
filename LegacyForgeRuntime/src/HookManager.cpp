@@ -1,5 +1,6 @@
 #include "HookManager.h"
 #include "GameHooks.h"
+#include "ModAtlas.h"
 #include "SymbolResolver.h"
 #include "CreativeInventory.h"
 #include "MainMenuOverlay.h"
@@ -67,6 +68,42 @@ bool HookManager::Install(const SymbolResolver& symbols)
 
     GameObjectFactory::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
 
+    if (symbols.pLoadUVs && symbols.pSimpleIconCtor && symbols.pOperatorNew)
+    {
+        ModAtlas::SetInjectSymbols(symbols.pSimpleIconCtor, symbols.pOperatorNew);
+        if (MH_CreateHook(symbols.pLoadUVs,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_LoadUVs),
+                          reinterpret_cast<void**>(&GameHooks::Original_LoadUVs)) != MH_OK)
+        {
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook PreStitchedTextureMap::loadUVs (mod textures may not appear)");
+        }
+        else
+        {
+            LogUtil::Log("[LegacyForge] Hooked PreStitchedTextureMap::loadUVs (mod texture injection)");
+        }
+
+        if (symbols.pRegisterIcon)
+        {
+            if (MH_CreateHook(symbols.pRegisterIcon,
+                              reinterpret_cast<void*>(&GameHooks::Hooked_RegisterIcon),
+                              reinterpret_cast<void**>(&GameHooks::Original_RegisterIcon)) != MH_OK)
+            {
+                LogUtil::Log("[LegacyForge] Warning: Failed to hook PreStitchedTextureMap::registerIcon");
+            }
+            else
+            {
+                LogUtil::Log("[LegacyForge] Hooked PreStitchedTextureMap::registerIcon (mod icon lookup)");
+                // Pass the trampoline to ModAtlas so it can look up vanilla icons
+                // for copying internal state (field_0x48 source image pointer).
+                ModAtlas::SetRegisterIconFn(GameHooks::Original_RegisterIcon);
+            }
+        }
+    }
+    else if (symbols.pLoadUVs)
+    {
+        LogUtil::Log("[LegacyForge] Mod texture injection unavailable: SimpleIcon/operator new not resolved");
+    }
+
     if (symbols.pCreativeStaticCtor)
     {
         CreativeInventory::ResolveSymbols(const_cast<SymbolResolver&>(symbols));
@@ -110,6 +147,34 @@ bool HookManager::Install(const SymbolResolver& symbols)
         else
         {
             LogUtil::Log("[LegacyForge] Hooked C4JRender::Present");
+        }
+    }
+
+    if (symbols.pGetString)
+    {
+        if (MH_CreateHook(symbols.pGetString,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_GetString),
+                          reinterpret_cast<void**>(&GameHooks::Original_GetString)) != MH_OK)
+        {
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook CMinecraftApp::GetString (mod names unavailable)");
+        }
+        else
+        {
+            LogUtil::Log("[LegacyForge] Hooked CMinecraftApp::GetString (mod localization)");
+        }
+    }
+
+    if (symbols.pGetResourceAsStream)
+    {
+        if (MH_CreateHook(symbols.pGetResourceAsStream,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_GetResourceAsStream),
+                          reinterpret_cast<void**>(&GameHooks::Original_GetResourceAsStream)) != MH_OK)
+        {
+            LogUtil::Log("[LegacyForge] Warning: Failed to hook InputStream::getResourceAsStream (mod atlas unavailable)");
+        }
+        else
+        {
+            LogUtil::Log("[LegacyForge] Hooked InputStream::getResourceAsStream (mod textures)");
         }
     }
 

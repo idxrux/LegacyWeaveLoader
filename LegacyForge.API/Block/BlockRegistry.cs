@@ -40,7 +40,8 @@ public static class BlockRegistry
             (int)properties.SoundValue,
             properties.IconValue,
             properties.LightEmissionValue,
-            properties.LightBlockValue);
+            properties.LightBlockValue,
+            properties.NameValue ?? "");
 
         if (numericId < 0)
             throw new InvalidOperationException($"Failed to register block '{id}'. No free IDs or invalid parameters.");

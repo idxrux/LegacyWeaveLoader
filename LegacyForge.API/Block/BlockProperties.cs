@@ -47,14 +47,18 @@ public class BlockProperties
     internal float LightEmissionValue = 0.0f;
     internal int LightBlockValue = 255;
     internal CreativeTab CreativeTabValue = CreativeTab.None;
+    internal string? NameValue;
 
     public BlockProperties Material(MaterialType material) { MaterialValue = material; return this; }
     public BlockProperties Hardness(float hardness) { HardnessValue = hardness; return this; }
     public BlockProperties Resistance(float resistance) { ResistanceValue = resistance; return this; }
     public BlockProperties Sound(SoundType sound) { SoundValue = sound; return this; }
+    /// <summary>Icon name in the terrain atlas. Use namespaced ID for mod textures (e.g. "examplemod:ruby_ore" from assets/blocks/ruby_ore.png), or vanilla names like "stone", "gold_ore".</summary>
     public BlockProperties Icon(string iconName) { IconValue = iconName; return this; }
     public BlockProperties LightLevel(float level) { LightEmissionValue = level; return this; }
     public BlockProperties LightBlocking(int level) { LightBlockValue = level; return this; }
     public BlockProperties Indestructible() { HardnessValue = -1.0f; ResistanceValue = 6000000f; return this; }
     public BlockProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
+    /// <summary>Display name shown in-game (e.g. "Ruby Ore"). Used for localization.</summary>
+    public BlockProperties Name(string displayName) { NameValue = displayName; return this; }
 }

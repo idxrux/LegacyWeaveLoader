@@ -36,7 +36,8 @@ public static class ItemRegistry
             id.ToString(),
             properties.MaxStackSizeValue,
             properties.MaxDamageValue,
-            properties.IconValue);
+            properties.IconValue,
+            properties.NameValue ?? "");
 
         if (numericId < 0)
             throw new InvalidOperationException($"Failed to register item '{id}'. No free IDs or invalid parameters.");

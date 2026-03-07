@@ -14,6 +14,8 @@ typedef void* (__fastcall *TileSetFloat_fn)(void* thisPtr, float val);
 typedef void* (__fastcall *TileSetSoundType_fn)(void* thisPtr, const void* soundType);
 // Tile* Tile::setIconName(const std::wstring&) — protected virtual
 typedef void* (__fastcall *TileSetIconName_fn)(void* thisPtr, const std::wstring& name);
+// Tile* Tile::setDescriptionId(unsigned int) — public virtual
+typedef void* (__fastcall *TileSetDescriptionId_fn)(void* thisPtr, unsigned int id);
 
 // TileItem::TileItem(int id)
 typedef void (__fastcall *TileItemCtor_fn)(void* thisPtr, int id);
@@ -22,17 +24,21 @@ typedef void (__fastcall *TileItemCtor_fn)(void* thisPtr, int id);
 typedef void (__fastcall *ItemCtor_fn)(void* thisPtr, int id);
 // Item* Item::setIconName(const std::wstring&)
 typedef void* (__fastcall *ItemSetIconName_fn)(void* thisPtr, const std::wstring& name);
+// Item::getDescriptionId(int) — used to extract the descriptionId field offset
+typedef unsigned int (__fastcall *ItemGetDescriptionId_fn)(void* thisPtr, int auxData);
 
 static TileCtor_fn        fnTileCtor       = nullptr;
 static TileSetFloat_fn    fnSetDestroyTime = nullptr;
 static TileSetFloat_fn    fnSetExplodeable = nullptr;
 static TileSetSoundType_fn fnSetSoundType  = nullptr;
 static TileSetIconName_fn fnTileSetIconName= nullptr;
+static TileSetDescriptionId_fn fnTileSetDescriptionId = nullptr;
 
 static TileItemCtor_fn    fnTileItemCtor   = nullptr;
 
 static ItemCtor_fn        fnItemCtor       = nullptr;
 static ItemSetIconName_fn fnItemSetIconName= nullptr;
+static int s_itemDescIdOffset = -1; // offset of descriptionId field in Item, extracted from getDescriptionId
 
 // Store ADDRESSES of Material*/SoundType* statics so we can dereference lazily
 // (they're NULL at resolve time because staticCtor hasn't run yet).
@@ -76,6 +82,8 @@ bool ResolveSymbols(SymbolResolver& resolver)
         "?setSoundType@Tile@@MEAAPEAV1@PEBVSoundType@1@@Z");
     fnTileSetIconName = (TileSetIconName_fn)resolver.Resolve(
         "?setIconName@Tile@@MEAAPEAV1@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@Z");
+    fnTileSetDescriptionId = (TileSetDescriptionId_fn)resolver.Resolve(
+        "?setDescriptionId@Tile@@UEAAPEAV1@I@Z");
 
     // TileItem constructor
     fnTileItemCtor = (TileItemCtor_fn)resolver.Resolve("??0TileItem@@QEAA@H@Z");
@@ -86,6 +94,34 @@ bool ResolveSymbols(SymbolResolver& resolver)
     // Item::setIconName
     fnItemSetIconName = (ItemSetIconName_fn)resolver.Resolve(
         "?setIconName@Item@@QEAAPEAV1@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@Z");
+    // Item::setDescriptionId is inlined — extract the field offset from getDescriptionId instead.
+    // getDescriptionId(int) is "mov eax, [rcx+offset]; ret" so we parse the offset from its opcodes.
+    void* fnItemGetDescId = resolver.Resolve("?getDescriptionId@Item@@UEAAIH@Z");
+    if (fnItemGetDescId)
+    {
+        const uint8_t* code = static_cast<const uint8_t*>(fnItemGetDescId);
+        if (code[0] == 0x8B && code[1] == 0x41)
+        {
+            // mov eax, [rcx+disp8]  —  8B 41 XX
+            s_itemDescIdOffset = static_cast<int>(code[2]);
+            LogUtil::Log("[LegacyForge] Item descriptionId offset = 0x%X (from getDescriptionId disp8)", s_itemDescIdOffset);
+        }
+        else if (code[0] == 0x8B && code[1] == 0x81)
+        {
+            // mov eax, [rcx+disp32]  —  8B 81 XX XX XX XX
+            s_itemDescIdOffset = *reinterpret_cast<const int*>(code + 2);
+            LogUtil::Log("[LegacyForge] Item descriptionId offset = 0x%X (from getDescriptionId disp32)", s_itemDescIdOffset);
+        }
+        else
+        {
+            LogUtil::Log("[LegacyForge] Item::getDescriptionId has unexpected opcode pattern: %02X %02X %02X",
+                         code[0], code[1], code[2]);
+        }
+    }
+    else
+    {
+        LogUtil::Log("[LegacyForge] MISSING: Item::getDescriptionId — cannot set item display names");
+    }
 
     // Resolve Material* static pointer ADDRESSES (values are NULL until staticCtor runs)
     auto resolveMat = [&](int idx, const char* sym) {
@@ -162,7 +198,7 @@ bool ResolveSymbols(SymbolResolver& resolver)
 }
 
 bool CreateTile(int tileId, int materialType, float hardness, float resistance,
-                int soundType, const wchar_t* iconName)
+                int soundType, const wchar_t* iconName, int descriptionId)
 {
     if (!s_resolved || !fnTileCtor)
     {
@@ -201,8 +237,13 @@ bool CreateTile(int tileId, int materialType, float hardness, float resistance,
         fnTileSetIconName(tile, name);
     }
 
-    LogUtil::Log("[LegacyForge] Created Tile id=%d (material=%d, icon=%ls)", tileId, materialType,
-                 iconName ? iconName : L"<none>");
+    if (fnTileSetDescriptionId && descriptionId >= 0)
+    {
+        fnTileSetDescriptionId(tile, static_cast<unsigned int>(descriptionId));
+    }
+
+    LogUtil::Log("[LegacyForge] Created Tile id=%d (material=%d, icon=%ls, descId=%d)", tileId, materialType,
+                 iconName ? iconName : L"<none>", descriptionId);
 
     // Create the corresponding TileItem so the block can appear in inventory.
     // TileItem(tileId - 256) -> Item::Item(tileId - 256) -> id = tileId, items[tileId] = this
@@ -217,7 +258,7 @@ bool CreateTile(int tileId, int materialType, float hardness, float resistance,
     return true;
 }
 
-bool CreateItem(int itemId, int maxStackSize, const wchar_t* iconName)
+bool CreateItem(int itemId, int maxStackSize, const wchar_t* iconName, int descriptionId)
 {
     if (!s_resolved || !fnItemCtor)
     {
@@ -239,8 +280,14 @@ bool CreateItem(int itemId, int maxStackSize, const wchar_t* iconName)
         fnItemSetIconName(item, name);
     }
 
-    LogUtil::Log("[LegacyForge] Created Item id=%d (ctorParam=%d, icon=%ls)",
-                 itemId, ctorParam, iconName ? iconName : L"<none>");
+    if (s_itemDescIdOffset > 0 && descriptionId >= 0)
+    {
+        *reinterpret_cast<unsigned int*>(static_cast<char*>(item) + s_itemDescIdOffset) =
+            static_cast<unsigned int>(descriptionId);
+    }
+
+    LogUtil::Log("[LegacyForge] Created Item id=%d (ctorParam=%d, icon=%ls, descId=%d)",
+                 itemId, ctorParam, iconName ? iconName : L"<none>", descriptionId);
 
     return true;
 }

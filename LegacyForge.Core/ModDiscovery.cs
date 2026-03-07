@@ -21,28 +21,45 @@ internal static class ModDiscovery
             return mods;
         }
 
-        var dllFiles = Directory.GetFiles(modsPath, "*.dll");
-        Logger.Info($"Scanning {modsPath} -- found {dllFiles.Length} DLL(s)");
-
-        foreach (var dllPath in dllFiles)
+        // Count LegacyForge.API as a mod when its folder exists (mods/LegacyForge.API/)
+        var apiFolder = Path.Combine(modsPath, "LegacyForge.API");
+        if (Directory.Exists(apiFolder))
         {
-            string fileName = Path.GetFileName(dllPath);
+            var apiMod = new LegacyForgeApiMod();
+            var attr = typeof(LegacyForgeApiMod).GetCustomAttribute<ModAttribute>()!;
+            mods.Add(new DiscoveredMod(apiMod, attr, typeof(ModDiscovery).Assembly));
+            Logger.Info($"Discovered mod: {attr.Name} v{attr.Version} by {attr.Author} (mods/LegacyForge.API/)");
+        }
 
-            // Skip the API assembly -- it's a shared dependency, not a mod
-            if (fileName.Equals("LegacyForge.API.dll", StringComparison.OrdinalIgnoreCase))
-                continue;
+        // Scan each mod folder: mods/ExampleMod/, mods/SomeMod/, etc.
+        // Each subfolder may contain one or more mod DLLs (we skip LegacyForge.API.dll)
+        var modFolders = Directory.GetDirectories(modsPath);
+        foreach (var folder in modFolders)
+        {
+            var folderName = Path.GetFileName(folder);
+            var dllFiles = Directory.GetFiles(folder, "*.dll", SearchOption.TopDirectoryOnly);
 
-            try
+            foreach (var dllPath in dllFiles)
             {
-                var discovered = LoadModAssembly(dllPath);
-                mods.AddRange(discovered);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Failed to load mod from {fileName}: {ex.Message}");
+                string fileName = Path.GetFileName(dllPath);
+
+                // Skip the API assembly -- it's in its own folder and counted above
+                if (fileName.Equals("LegacyForge.API.dll", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                try
+                {
+                    var discovered = LoadModAssembly(dllPath);
+                    mods.AddRange(discovered);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to load mod from {fileName}: {ex.Message}");
+                }
             }
         }
 
+        Logger.Info($"Scanning {modsPath} -- found {mods.Count} mod(s) total");
         return mods;
     }
 

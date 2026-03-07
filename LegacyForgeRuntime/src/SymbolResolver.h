@@ -17,6 +17,12 @@ public:
     void* pCreativeStaticCtor = nullptr;   // IUIScene_CreativeMenu::staticCtor()
     void* pMainMenuCustomDraw = nullptr;   // UIScene_MainMenu::customDraw()
     void* pPresent = nullptr;              // C4JRender::Present()
+    void* pGetString = nullptr;            // CMinecraftApp::GetString(int)
+    void* pGetResourceAsStream = nullptr;  // InputStream::getResourceAsStream(wstring)
+    void* pLoadUVs = nullptr;              // PreStitchedTextureMap::loadUVs()
+    void* pSimpleIconCtor = nullptr;       // SimpleIcon::SimpleIcon(wstring,wstring,float*4)
+    void* pOperatorNew = nullptr;          // global operator new(size_t) - for texture injection
+    void* pRegisterIcon = nullptr;         // PreStitchedTextureMap::registerIcon(const wstring&)
 
 private:
     uintptr_t m_moduleBase = 0;

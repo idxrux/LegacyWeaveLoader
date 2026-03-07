@@ -13,13 +13,18 @@ extern "C"
         int soundType,
         const char* iconName,
         float lightEmission,
-        int lightBlock);
+        int lightBlock,
+        const char* displayName);
 
     __declspec(dllexport) int native_register_item(
         const char* namespacedId,
         int maxStackSize,
         int maxDamage,
-        const char* iconName);
+        const char* iconName,
+        const char* displayName);
+
+    __declspec(dllexport) int native_allocate_description_id();
+    __declspec(dllexport) void native_register_string(int descriptionId, const char* displayName);
 
     __declspec(dllexport) int native_register_entity(
         const char* namespacedId,

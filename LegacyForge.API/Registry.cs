@@ -2,12 +2,13 @@ using LegacyForge.API.Block;
 using LegacyForge.API.Item;
 using LegacyForge.API.Entity;
 using LegacyForge.API.Recipe;
+using LegacyForge.API.Assets;
 
 namespace LegacyForge.API;
 
 /// <summary>
 /// Central access point for all LegacyForge registries.
-/// Use Registry.Block, Registry.Item, Registry.Entity, or Registry.Recipe to register content.
+/// Use Registry.Block, Registry.Item, Registry.Entity, Registry.Recipe, or Registry.Assets.
 /// </summary>
 public static class Registry
 {
@@ -41,5 +42,14 @@ public static class Registry
 
         public static void AddFurnace(Identifier input, Identifier output, float xp)
             => RecipeRegistry.AddFurnace(input, output, xp);
+    }
+
+    /// <summary>Asset registration for language strings and (future) textures.</summary>
+    public static class Assets
+    {
+        public static void RegisterString(int descriptionId, string displayName)
+            => AssetRegistry.RegisterString(descriptionId, displayName);
+        public static int AllocateDescriptionId()
+            => AssetRegistry.AllocateDescriptionId();
     }
 }

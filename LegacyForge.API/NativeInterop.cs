@@ -19,14 +19,22 @@ internal static class NativeInterop
         int soundType,
         string iconName,
         float lightEmission,
-        int lightBlock);
+        int lightBlock,
+        string displayName);
 
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int native_register_item(
         string namespacedId,
         int maxStackSize,
         int maxDamage,
-        string iconName);
+        string iconName,
+        string displayName);
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    internal static extern int native_allocate_description_id();
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    internal static extern void native_register_string(int descriptionId, string displayName);
 
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int native_register_entity(

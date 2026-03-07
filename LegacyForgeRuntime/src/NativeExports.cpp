@@ -2,10 +2,21 @@
 #include "IdRegistry.h"
 #include "CreativeInventory.h"
 #include "GameObjectFactory.h"
+#include "ModStrings.h"
 #include "LogUtil.h"
 #include <Windows.h>
 #include <cstring>
 #include <string>
+
+static std::wstring Utf8ToWide(const char* utf8)
+{
+    if (!utf8 || !utf8[0]) return std::wstring();
+    int len = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
+    if (len <= 0) return std::wstring();
+    std::wstring result(len - 1, 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8, -1, &result[0], len);
+    return result;
+}
 
 extern "C"
 {
@@ -18,7 +29,8 @@ int native_register_block(
     int soundType,
     const char* iconName,
     float lightEmission,
-    int lightBlock)
+    int lightBlock,
+    const char* displayName)
 {
     if (!namespacedId) return -1;
 
@@ -32,17 +44,18 @@ int native_register_block(
     LogUtil::Log("[LegacyForge] Registered block '%s' -> ID %d (hardness=%.1f, resistance=%.1f)",
                  namespacedId, id, hardness, resistance);
 
-    // Convert icon name from UTF-8 to wide string
-    std::wstring wIcon;
-    if (iconName)
+    std::wstring wIcon = Utf8ToWide(iconName);
+
+    int descId = -1;
+    if (displayName && displayName[0])
     {
-        int len = MultiByteToWideChar(CP_UTF8, 0, iconName, -1, nullptr, 0);
-        wIcon.resize(len > 0 ? len - 1 : 0);
-        MultiByteToWideChar(CP_UTF8, 0, iconName, -1, &wIcon[0], len);
+        descId = ModStrings::AllocateId();
+        std::wstring wName = Utf8ToWide(displayName);
+        ModStrings::Register(descId, wName.c_str());
     }
 
     if (!GameObjectFactory::CreateTile(id, materialId, hardness, resistance,
-                                        soundType, wIcon.empty() ? nullptr : wIcon.c_str()))
+                                        soundType, wIcon.empty() ? nullptr : wIcon.c_str(), descId))
     {
         LogUtil::Log("[LegacyForge] Warning: failed to create game Tile for block '%s' id=%d", namespacedId, id);
     }
@@ -54,7 +67,8 @@ int native_register_item(
     const char* namespacedId,
     int maxStackSize,
     int maxDamage,
-    const char* iconName)
+    const char* iconName,
+    const char* displayName)
 {
     if (!namespacedId) return -1;
 
@@ -68,20 +82,34 @@ int native_register_item(
     LogUtil::Log("[LegacyForge] Registered item '%s' -> ID %d (stack=%d, durability=%d)",
                  namespacedId, id, maxStackSize, maxDamage);
 
-    std::wstring wIcon;
-    if (iconName && iconName[0])
+    std::wstring wIcon = Utf8ToWide(iconName);
+
+    int descId = -1;
+    if (displayName && displayName[0])
     {
-        int len = MultiByteToWideChar(CP_UTF8, 0, iconName, -1, nullptr, 0);
-        wIcon.resize(len > 0 ? len - 1 : 0);
-        MultiByteToWideChar(CP_UTF8, 0, iconName, -1, &wIcon[0], len);
+        descId = ModStrings::AllocateId();
+        std::wstring wName = Utf8ToWide(displayName);
+        ModStrings::Register(descId, wName.c_str());
     }
 
-    if (!GameObjectFactory::CreateItem(id, maxStackSize, wIcon.empty() ? nullptr : wIcon.c_str()))
+    if (!GameObjectFactory::CreateItem(id, maxStackSize, wIcon.empty() ? nullptr : wIcon.c_str(), descId))
     {
         LogUtil::Log("[LegacyForge] Warning: failed to create game Item for '%s' id=%d", namespacedId, id);
     }
 
     return id;
+}
+
+int native_allocate_description_id()
+{
+    return ModStrings::AllocateId();
+}
+
+void native_register_string(int descriptionId, const char* displayName)
+{
+    if (!displayName) return;
+    std::wstring wName = Utf8ToWide(displayName);
+    ModStrings::Register(descriptionId, wName.c_str());
 }
 
 int native_register_entity(
