@@ -96,6 +96,34 @@ bool HookManager::Install(const SymbolResolver& symbols)
         }
     }
 
+    if (symbols.pEntityRendererBindTextureResource)
+    {
+        if (MH_CreateHook(symbols.pEntityRendererBindTextureResource,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_EntityRendererBindTextureResource),
+                          reinterpret_cast<void**>(&GameHooks::Original_EntityRendererBindTextureResource)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook EntityRenderer::bindTexture(ResourceLocation)");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked EntityRenderer::bindTexture(ResourceLocation) (dropped item atlas routing)");
+        }
+    }
+
+    if (symbols.pItemRendererRenderItemBillboard)
+    {
+        if (MH_CreateHook(symbols.pItemRendererRenderItemBillboard,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ItemRendererRenderItemBillboard),
+                          reinterpret_cast<void**>(&GameHooks::Original_ItemRendererRenderItemBillboard)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook ItemRenderer::renderItemBillboard");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked ItemRenderer::renderItemBillboard (dropped item atlas routing)");
+        }
+    }
+
     if (symbols.pItemMineBlock)
     {
         if (MH_CreateHook(symbols.pItemMineBlock,

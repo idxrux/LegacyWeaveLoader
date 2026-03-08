@@ -24,6 +24,8 @@ public:
     void* pOperatorNew = nullptr;          // global operator new(size_t) - for texture injection
     void* pRegisterIcon = nullptr;         // PreStitchedTextureMap::registerIcon(const wstring&)
     void* pItemInstanceGetIcon = nullptr;  // ItemInstance::getIcon()
+    void* pEntityRendererBindTextureResource = nullptr; // EntityRenderer::bindTexture(ResourceLocation*)
+    void* pItemRendererRenderItemBillboard = nullptr; // ItemRenderer::renderItemBillboard(shared_ptr<ItemEntity>,Icon*,...)
     void* pItemInstanceMineBlock = nullptr; // ItemInstance::mineBlock(Level*,int,int,int,int,shared_ptr<Player>)
     void* pItemMineBlock = nullptr;        // Item::mineBlock(shared_ptr<ItemInstance>,Level*,int,int,int,int,shared_ptr<LivingEntity>)
     void* pDiggerItemMineBlock = nullptr;  // DiggerItem::mineBlock(shared_ptr<ItemInstance>,Level*,int,int,int,int,shared_ptr<LivingEntity>)

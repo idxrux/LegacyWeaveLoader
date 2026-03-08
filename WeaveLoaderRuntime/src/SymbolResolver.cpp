@@ -19,6 +19,8 @@ static const char* SYM_SIMPLE_ICON_CTOR = "??0SimpleIcon@@QEAA@AEBV?$basic_strin
 static const char* SYM_OPERATOR_NEW = "??2@YAPEAX_K@Z";
 static const char* SYM_REGISTER_ICON = "?registerIcon@PreStitchedTextureMap@@UEAAPEAVIcon@@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@Z";
 static const char* SYM_ITEMINSTANCE_GETICON = "?getIcon@ItemInstance@@QEAAPEAVIcon@@XZ";
+static const char* SYM_ENTITYRENDERER_BINDTEXTURE_RESOURCE = "?bindTexture@EntityRenderer@@MEAAXPEAVResourceLocation@@@Z";
+static const char* SYM_ITEMRENDERER_RENDERITEMBILLBOARD = "?renderItemBillboard@ItemRenderer@@EEAAXV?$shared_ptr@VItemEntity@@@std@@PEAVIcon@@HMMMM@Z";
 static const char* SYM_ITEMINSTANCE_MINEBLOCK = "?mineBlock@ItemInstance@@QEAAXPEAVLevel@@HHHHV?$shared_ptr@VPlayer@@@std@@@Z";
 static const char* SYM_ITEM_MINEBLOCK = "?mineBlock@Item@@UEAA_NV?$shared_ptr@VItemInstance@@@std@@PEAVLevel@@HHHHV?$shared_ptr@VLivingEntity@@@3@@Z";
 static const char* SYM_DIGGERITEM_MINEBLOCK = "?mineBlock@DiggerItem@@UEAA_NV?$shared_ptr@VItemInstance@@@std@@PEAVLevel@@HHHHV?$shared_ptr@VLivingEntity@@@3@@Z";
@@ -118,6 +120,8 @@ bool SymbolResolver::ResolveGameFunctions()
     pOperatorNew         = Resolve(SYM_OPERATOR_NEW);
     pRegisterIcon        = Resolve(SYM_REGISTER_ICON);
     pItemInstanceGetIcon = Resolve(SYM_ITEMINSTANCE_GETICON);
+    pEntityRendererBindTextureResource = Resolve(SYM_ENTITYRENDERER_BINDTEXTURE_RESOURCE);
+    pItemRendererRenderItemBillboard = Resolve(SYM_ITEMRENDERER_RENDERITEMBILLBOARD);
     pItemInstanceMineBlock = Resolve(SYM_ITEMINSTANCE_MINEBLOCK);
     pItemMineBlock = Resolve(SYM_ITEM_MINEBLOCK);
     pDiggerItemMineBlock = Resolve(SYM_DIGGERITEM_MINEBLOCK);
@@ -175,6 +179,8 @@ bool SymbolResolver::ResolveGameFunctions()
     logSym("operator new", pOperatorNew);
     logSym("registerIcon", pRegisterIcon);
     logSym("ItemInstance::getIcon", pItemInstanceGetIcon);
+    logSym("EntityRenderer::bindTexture(ResourceLocation)", pEntityRendererBindTextureResource);
+    logSym("ItemRenderer::renderItemBillboard", pItemRendererRenderItemBillboard);
     logSym("ItemInstance::mineBlock", pItemInstanceMineBlock);
     logSym("Item::mineBlock", pItemMineBlock);
     logSym("DiggerItem::mineBlock", pDiggerItemMineBlock);

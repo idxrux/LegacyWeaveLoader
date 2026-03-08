@@ -29,6 +29,8 @@ namespace GameHooks
     LoadUVs_fn             Original_LoadUVs = nullptr;
     RegisterIcon_fn        Original_RegisterIcon = nullptr;
     ItemInstanceGetIcon_fn Original_ItemInstanceGetIcon = nullptr;
+    EntityRendererBindTextureResource_fn Original_EntityRendererBindTextureResource = nullptr;
+    ItemRendererRenderItemBillboard_fn Original_ItemRendererRenderItemBillboard = nullptr;
     ItemInstanceMineBlock_fn Original_ItemInstanceMineBlock = nullptr;
     ItemMineBlock_fn       Original_ItemMineBlock = nullptr;
     ItemMineBlock_fn       Original_DiggerItemMineBlock = nullptr;
@@ -71,6 +73,9 @@ namespace GameHooks
     static int s_textureAtlasIdBlocks = -1;
     static int s_textureAtlasIdItems = -1;
     static thread_local bool s_inLoadTextureByNameHook = false;
+    static thread_local bool s_hasForcedBillboardRoute = false;
+    static thread_local int s_forcedBillboardAtlas = -1;
+    static thread_local int s_forcedBillboardPage = 0;
 
     struct TextureNameArrayNative
     {
@@ -1011,6 +1016,50 @@ namespace GameHooks
         else
             ModAtlas::ClearPendingPage();
         return icon;
+    }
+
+    void __fastcall Hooked_EntityRendererBindTextureResource(void* thisPtr, void* resourcePtr)
+    {
+        if (!Original_EntityRendererBindTextureResource)
+            return;
+
+        const int boundAtlas = DetectAtlasTypeFromResource(resourcePtr);
+        if (s_hasForcedBillboardRoute && resourcePtr && boundAtlas == s_forcedBillboardAtlas && s_forcedBillboardPage > 0)
+        {
+            EnsurePageResourcesInitialized();
+            const ResourceLocationNative* originalRes =
+                reinterpret_cast<const ResourceLocationNative*>(resourcePtr);
+            s_pageResource.textures = originalRes->textures;
+            s_pageResource.path = BuildVirtualAtlasPath(s_forcedBillboardAtlas, s_forcedBillboardPage);
+            s_pageResource.preloaded = false;
+            Original_EntityRendererBindTextureResource(thisPtr, &s_pageResource);
+            return;
+        }
+
+        Original_EntityRendererBindTextureResource(thisPtr, resourcePtr);
+    }
+
+    void __fastcall Hooked_ItemRendererRenderItemBillboard(void* thisPtr, void* entitySharedPtr, void* iconPtr, int count, float a, float red, float green, float blue)
+    {
+        const bool hadForcedRoute = s_hasForcedBillboardRoute;
+        const int prevAtlas = s_forcedBillboardAtlas;
+        const int prevPage = s_forcedBillboardPage;
+
+        int atlasType = -1;
+        int page = 0;
+        if (iconPtr && ModAtlas::TryGetIconRoute(iconPtr, atlasType, page) && page > 0)
+        {
+            s_hasForcedBillboardRoute = true;
+            s_forcedBillboardAtlas = atlasType;
+            s_forcedBillboardPage = page;
+        }
+
+        if (Original_ItemRendererRenderItemBillboard)
+            Original_ItemRendererRenderItemBillboard(thisPtr, entitySharedPtr, iconPtr, count, a, red, green, blue);
+
+        s_hasForcedBillboardRoute = hadForcedRoute;
+        s_forcedBillboardAtlas = prevAtlas;
+        s_forcedBillboardPage = prevPage;
     }
 
     void __fastcall Hooked_ItemInstanceMineBlock(void* thisPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr)
