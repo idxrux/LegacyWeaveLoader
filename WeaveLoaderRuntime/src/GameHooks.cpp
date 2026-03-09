@@ -10,6 +10,7 @@
 #include "ManagedBlockRegistry.h"
 #include "CustomSlabRegistry.h"
 #include "LogUtil.h"
+#include "WorldIdRemap.h"
 #include <Windows.h>
 #include <string>
 #include <cstdio>
@@ -43,6 +44,8 @@ namespace GameHooks
     TextureGetSourceDim_fn Original_ClockTextureGetSourceWidth = nullptr;
     TextureGetSourceDim_fn Original_ClockTextureGetSourceHeight = nullptr;
     ItemInstanceMineBlock_fn Original_ItemInstanceMineBlock = nullptr;
+    ItemInstanceSave_fn Original_ItemInstanceSave = nullptr;
+    ItemInstanceLoad_fn Original_ItemInstanceLoad = nullptr;
     ItemMineBlock_fn       Original_ItemMineBlock = nullptr;
     ItemMineBlock_fn       Original_DiggerItemMineBlock = nullptr;
     PickaxeGetDestroySpeed_fn Original_PickaxeItemGetDestroySpeed = nullptr;
@@ -1656,6 +1659,24 @@ namespace GameHooks
             Original_ItemInstanceMineBlock(thisPtr, level, tile, x, y, z, ownerSharedPtr);
     }
 
+    void* __fastcall Hooked_ItemInstanceSave(void* thisPtr, void* compoundTagPtr)
+    {
+        // Namespace marker now lives on ItemInstance::tag, so it must be present
+        // before vanilla serialization copies that nested tag into the output.
+        WorldIdRemap::TagModdedItemInstance(thisPtr, compoundTagPtr);
+        void* outTag = Original_ItemInstanceSave
+            ? Original_ItemInstanceSave(thisPtr, compoundTagPtr)
+            : compoundTagPtr;
+        return outTag;
+    }
+
+    void __fastcall Hooked_ItemInstanceLoad(void* thisPtr, void* compoundTagPtr)
+    {
+        if (Original_ItemInstanceLoad)
+            Original_ItemInstanceLoad(thisPtr, compoundTagPtr);
+        WorldIdRemap::RemapItemInstanceFromTag(thisPtr, compoundTagPtr);
+    }
+
     bool __fastcall Hooked_ItemMineBlock(void* thisPtr, void* itemInstanceSharedPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr)
     {
         s_itemMineBlockHookCalls++;
@@ -2049,6 +2070,8 @@ namespace GameHooks
         s_preInitCalled = true;
 
         Original_RunStaticCtors();
+
+        WorldIdRemap::EnsureMissingPlaceholders();
 
         LogUtil::Log("[WeaveLoader] Hook: RunStaticCtors complete -- calling Init");
         DotNetHost::CallInit();

@@ -2,6 +2,7 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include <vector>
 
 /// Maps namespaced string IDs ("namespace:path") to auto-allocated numeric IDs.
 /// Separate pools for blocks, items, and entities.
@@ -26,6 +27,13 @@ public:
     /// Pre-register a vanilla entry with a known numeric ID.
     void RegisterVanilla(Type type, int numericId, const std::string& namespacedId);
 
+    /// Returns a copy of the current numeric->namespace mappings for a type.
+    std::vector<std::pair<int, std::string>> GetEntries(Type type) const;
+
+    /// Configure and query the placeholder numeric ID used when a namespaced ID no longer exists.
+    void SetMissingFallback(Type type, int numericId);
+    int GetMissingFallback(Type type) const;
+
 private:
     IdRegistry();
 
@@ -34,6 +42,7 @@ private:
         std::unordered_map<std::string, int> stringToNum;
         std::unordered_map<int, std::string> numToString;
         int nextFreeId;
+        int missingFallbackId = -1;
     };
 
     // Tile IDs 174-255 are unused by vanilla (161-169 also free but small).

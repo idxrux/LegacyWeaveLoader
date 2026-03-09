@@ -75,3 +75,26 @@ void IdRegistry::RegisterVanilla(Type type, int numericId, const std::string& na
     reg.stringToNum[namespacedId] = numericId;
     reg.numToString[numericId] = namespacedId;
 }
+
+std::vector<std::pair<int, std::string>> IdRegistry::GetEntries(Type type) const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<std::pair<int, std::string>> entries;
+    const auto& reg = m_registries[static_cast<int>(type)];
+    entries.reserve(reg.numToString.size());
+    for (const auto& it : reg.numToString)
+        entries.push_back(it);
+    return entries;
+}
+
+void IdRegistry::SetMissingFallback(Type type, int numericId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_registries[static_cast<int>(type)].missingFallbackId = numericId;
+}
+
+int IdRegistry::GetMissingFallback(Type type) const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_registries[static_cast<int>(type)].missingFallbackId;
+}

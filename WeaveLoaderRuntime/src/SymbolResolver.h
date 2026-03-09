@@ -33,6 +33,9 @@ public:
     void* pClockTextureGetSourceWidth = nullptr; // ClockTexture::getSourceWidth() const
     void* pClockTextureGetSourceHeight = nullptr; // ClockTexture::getSourceHeight() const
     void* pItemInstanceMineBlock = nullptr; // ItemInstance::mineBlock(Level*,int,int,int,int,shared_ptr<Player>)
+    void* pItemInstanceSave = nullptr;      // ItemInstance::save(CompoundTag*)
+    void* pItemInstanceLoad = nullptr;      // ItemInstance::load(CompoundTag*)
+    void* pTagNewTag = nullptr;             // Tag::newTag(byte,const wstring&)
     void* pItemMineBlock = nullptr;        // Item::mineBlock(shared_ptr<ItemInstance>,Level*,int,int,int,int,shared_ptr<LivingEntity>)
     void* pDiggerItemMineBlock = nullptr;  // DiggerItem::mineBlock(shared_ptr<ItemInstance>,Level*,int,int,int,int,shared_ptr<LivingEntity>)
     void* pPickaxeItemGetDestroySpeed = nullptr; // PickaxeItem::getDestroySpeed(shared_ptr<ItemInstance>,Tile*)

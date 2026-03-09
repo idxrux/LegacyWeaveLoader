@@ -86,6 +86,7 @@ add_library(WeaveLoaderRuntime SHARED
     src/GameHooks.cpp
     src/DotNetHost.cpp
     src/IdRegistry.cpp
+    src/WorldIdRemap.cpp
     src/NativeExports.cpp
     src/CustomPickaxeRegistry.cpp
     src/CustomToolMaterialRegistry.cpp

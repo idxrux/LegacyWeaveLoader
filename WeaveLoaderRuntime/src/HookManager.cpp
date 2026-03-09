@@ -8,6 +8,7 @@
 #include "GameObjectFactory.h"
 #include "FurnaceRecipeRegistry.h"
 #include "NativeExports.h"
+#include "WorldIdRemap.h"
 #include "LogUtil.h"
 #include <MinHook.h>
 
@@ -18,6 +19,8 @@ bool HookManager::Install(const SymbolResolver& symbols)
         LogUtil::Log("[WeaveLoader] MH_Initialize failed");
         return false;
     }
+
+    WorldIdRemap::SetTagNewTagSymbol(symbols.pTagNewTag);
 
     if (symbols.pRunStaticCtors)
     {
@@ -80,6 +83,34 @@ bool HookManager::Install(const SymbolResolver& symbols)
         else
         {
             LogUtil::Log("[WeaveLoader] Hooked ItemInstance::mineBlock (managed item callbacks)");
+        }
+    }
+
+    if (symbols.pItemInstanceSave)
+    {
+        if (MH_CreateHook(symbols.pItemInstanceSave,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ItemInstanceSave),
+                          reinterpret_cast<void**>(&GameHooks::Original_ItemInstanceSave)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook ItemInstance::save");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked ItemInstance::save (namespace remap)");
+        }
+    }
+
+    if (symbols.pItemInstanceLoad)
+    {
+        if (MH_CreateHook(symbols.pItemInstanceLoad,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ItemInstanceLoad),
+                          reinterpret_cast<void**>(&GameHooks::Original_ItemInstanceLoad)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook ItemInstance::load");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked ItemInstance::load (namespace remap)");
         }
     }
 

@@ -24,6 +24,8 @@ typedef void (__fastcall *ItemRendererRenderItemBillboard_fn)(void* thisPtr, voi
 typedef void (__fastcall *AnimatedTextureCycleFrames_fn)(void* thisPtr);
 typedef int (__fastcall *TextureGetSourceDim_fn)(void* thisPtr);
 typedef void (__fastcall *ItemInstanceMineBlock_fn)(void* thisPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr);
+typedef void* (__fastcall *ItemInstanceSave_fn)(void* thisPtr, void* compoundTagPtr);
+typedef void (__fastcall *ItemInstanceLoad_fn)(void* thisPtr, void* compoundTagPtr);
 typedef bool (__fastcall *ItemMineBlock_fn)(void* thisPtr, void* itemInstanceSharedPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr);
 typedef float (__fastcall *PickaxeGetDestroySpeed_fn)(void* thisPtr, void* itemInstanceSharedPtr, void* tilePtr);
 typedef bool (__fastcall *PickaxeCanDestroySpecial_fn)(void* thisPtr, void* tilePtr);
@@ -85,6 +87,8 @@ namespace GameHooks
     extern TextureGetSourceDim_fn Original_ClockTextureGetSourceWidth;
     extern TextureGetSourceDim_fn Original_ClockTextureGetSourceHeight;
     extern ItemInstanceMineBlock_fn Original_ItemInstanceMineBlock;
+    extern ItemInstanceSave_fn Original_ItemInstanceSave;
+    extern ItemInstanceLoad_fn Original_ItemInstanceLoad;
     extern ItemMineBlock_fn       Original_ItemMineBlock;
     extern ItemMineBlock_fn       Original_DiggerItemMineBlock;
     extern PickaxeGetDestroySpeed_fn Original_PickaxeItemGetDestroySpeed;
@@ -147,6 +151,8 @@ namespace GameHooks
     int __fastcall Hooked_ClockTextureGetSourceWidth(void* thisPtr);
     int __fastcall Hooked_ClockTextureGetSourceHeight(void* thisPtr);
     void __fastcall Hooked_ItemInstanceMineBlock(void* thisPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr);
+    void* __fastcall Hooked_ItemInstanceSave(void* thisPtr, void* compoundTagPtr);
+    void __fastcall Hooked_ItemInstanceLoad(void* thisPtr, void* compoundTagPtr);
     bool __fastcall Hooked_ItemMineBlock(void* thisPtr, void* itemInstanceSharedPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr);
     bool __fastcall Hooked_DiggerItemMineBlock(void* thisPtr, void* itemInstanceSharedPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr);
     float __fastcall Hooked_PickaxeItemGetDestroySpeed(void* thisPtr, void* itemInstanceSharedPtr, void* tilePtr);

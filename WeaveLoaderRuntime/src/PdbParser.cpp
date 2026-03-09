@@ -97,6 +97,107 @@ static const char* GetGlobalSymName(const PDB::CodeView::DBI::Record* record,
     }
 }
 
+#pragma pack(push, 1)
+struct ProcRefRecordData
+{
+    uint32_t sumName;
+    uint32_t ibSym;
+    uint16_t imod;
+    PDB_FLEXIBLE_ARRAY_MEMBER(char, name);
+};
+#pragma pack(pop)
+
+static const char* GetProcRefName(const PDB::CodeView::DBI::Record* record,
+                                  uint16_t& outModuleIndex, uint32_t& outSymbolOffset)
+{
+    switch (record->header.kind)
+    {
+    case PDB::CodeView::DBI::SymbolRecordKind::S_PROCREF:
+    case PDB::CodeView::DBI::SymbolRecordKind::S_LPROCREF:
+        {
+            const ProcRefRecordData* ref = reinterpret_cast<const ProcRefRecordData*>(&record->data);
+            outModuleIndex = ref->imod;
+            outSymbolOffset = ref->ibSym;
+            return ref->name;
+        }
+    default:
+        return nullptr;
+    }
+}
+
+static uint32_t ResolveProcRecordRVA(const PDB::CodeView::DBI::Record* record, const PDB::ImageSectionStream* sectionStream)
+{
+    if (!record || !sectionStream)
+        return 0;
+
+    uint16_t section = 0;
+    uint32_t offset = 0;
+
+    switch (record->header.kind)
+    {
+    case PDB::CodeView::DBI::SymbolRecordKind::S_LPROC32:
+        section = record->data.S_LPROC32.section;
+        offset = record->data.S_LPROC32.offset;
+        break;
+    case PDB::CodeView::DBI::SymbolRecordKind::S_GPROC32:
+        section = record->data.S_GPROC32.section;
+        offset = record->data.S_GPROC32.offset;
+        break;
+    case PDB::CodeView::DBI::SymbolRecordKind::S_LPROC32_ID:
+        section = record->data.S_LPROC32_ID.section;
+        offset = record->data.S_LPROC32_ID.offset;
+        break;
+    case PDB::CodeView::DBI::SymbolRecordKind::S_GPROC32_ID:
+        section = record->data.S_GPROC32_ID.section;
+        offset = record->data.S_GPROC32_ID.offset;
+        break;
+    default:
+        return 0;
+    }
+
+    return sectionStream->ConvertSectionOffsetToRVA(section, offset);
+}
+
+static uint32_t ResolveProcRefRVA(uint16_t moduleIndex, uint32_t symbolOffset)
+{
+    if (!s_moduleStream || !s_rawFile)
+        return 0;
+
+    const PDB::ArrayView<PDB::ModuleInfoStream::Module> modules = s_moduleStream->GetModules();
+    if (modules.GetLength() == 0)
+        return 0;
+
+    const size_t candidateIndices[2] = {
+        (moduleIndex > 0) ? static_cast<size_t>(moduleIndex - 1u) : static_cast<size_t>(-1),
+        static_cast<size_t>(moduleIndex)
+    };
+    const uint32_t candidateOffsets[2] = {
+        symbolOffset,
+        symbolOffset + 4u
+    };
+
+    for (size_t moduleArrayIndex : candidateIndices)
+    {
+        if (moduleArrayIndex >= modules.GetLength())
+            continue;
+
+        const PDB::ModuleInfoStream::Module& mod = modules[moduleArrayIndex];
+        if (!mod.HasSymbolStream())
+            continue;
+
+        const PDB::ModuleSymbolStream modSymStream = mod.CreateSymbolStream(*s_rawFile);
+        for (uint32_t candidateOffset : candidateOffsets)
+        {
+            const PDB::CodeView::DBI::Record* target = modSymStream.GetRecordAtOffset(candidateOffset);
+            const uint32_t rva = ResolveProcRecordRVA(target, s_sectionStream);
+            if (rva != 0)
+                return rva;
+        }
+    }
+
+    return 0;
+}
+
 namespace PdbParser
 {
 
@@ -213,7 +314,26 @@ uint32_t FindSymbolRVA(const char* decoratedName)
         }
     }
 
-    // 3) Search per-module symbol streams (S_LPROC32, S_GPROC32, S_LPROC32_ID, S_GPROC32_ID, S_LDATA32, S_GDATA32)
+    // 3) Search global PROCREF/LPROCREF symbols and chase them into the referenced module record.
+    {
+        const PDB::ArrayView<PDB::HashRecord> records = s_globalStream->GetRecords();
+        for (const PDB::HashRecord& hashRecord : records)
+        {
+            const PDB::CodeView::DBI::Record* record = s_globalStream->GetRecord(*s_symbolRecords, hashRecord);
+            uint16_t moduleIndex = 0;
+            uint32_t symbolOffset = 0;
+            const char* name = GetProcRefName(record, moduleIndex, symbolOffset);
+
+            if (!name || strcmp(name, decoratedName) != 0)
+                continue;
+
+            const uint32_t rva = ResolveProcRefRVA(moduleIndex, symbolOffset);
+            if (rva != 0)
+                return rva;
+        }
+    }
+
+    // 4) Search per-module symbol streams (S_LPROC32, S_GPROC32, S_LPROC32_ID, S_GPROC32_ID, S_LDATA32, S_GDATA32)
     {
         const PDB::ArrayView<PDB::ModuleInfoStream::Module> modules = s_moduleStream->GetModules();
         for (const PDB::ModuleInfoStream::Module& mod : modules)
@@ -304,7 +424,26 @@ uint32_t FindSymbolRVAByName(const char* exactName)
         }
     }
 
-    // 2) Search per-module symbol streams for exact name matches.
+    // 2) Search global PROCREF/LPROCREF symbols and chase them into the referenced module record.
+    {
+        const PDB::ArrayView<PDB::HashRecord> records = s_globalStream->GetRecords();
+        for (const PDB::HashRecord& hashRecord : records)
+        {
+            const PDB::CodeView::DBI::Record* record = s_globalStream->GetRecord(*s_symbolRecords, hashRecord);
+            uint16_t moduleIndex = 0;
+            uint32_t symbolOffset = 0;
+            const char* name = GetProcRefName(record, moduleIndex, symbolOffset);
+
+            if (!name || strcmp(name, exactName) != 0)
+                continue;
+
+            const uint32_t rva = ResolveProcRefRVA(moduleIndex, symbolOffset);
+            if (rva != 0)
+                return rva;
+        }
+    }
+
+    // 3) Search per-module symbol streams for exact name matches.
     {
         const PDB::ArrayView<PDB::ModuleInfoStream::Module> modules = s_moduleStream->GetModules();
         for (const PDB::ModuleInfoStream::Module& mod : modules)

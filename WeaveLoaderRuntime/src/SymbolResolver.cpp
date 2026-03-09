@@ -28,6 +28,9 @@ static const char* SYM_COMPASS_GETSOURCEHEIGHT = "?getSourceHeight@CompassTextur
 static const char* SYM_CLOCK_GETSOURCEWIDTH = "?getSourceWidth@ClockTexture@@UEBAHXZ";
 static const char* SYM_CLOCK_GETSOURCEHEIGHT = "?getSourceHeight@ClockTexture@@UEBAHXZ";
 static const char* SYM_ITEMINSTANCE_MINEBLOCK = "?mineBlock@ItemInstance@@QEAAXPEAVLevel@@HHHHV?$shared_ptr@VPlayer@@@std@@@Z";
+static const char* SYM_ITEMINSTANCE_SAVE = "?save@ItemInstance@@QEAAPEAVCompoundTag@@PEAV2@@Z";
+static const char* SYM_ITEMINSTANCE_LOAD = "?load@ItemInstance@@QEAAXPEAVCompoundTag@@@Z";
+static const char* SYM_TAG_NEWTAG = "?newTag@Tag@@SAPEAV1@EAEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@Z";
 static const char* SYM_ITEM_MINEBLOCK = "?mineBlock@Item@@UEAA_NV?$shared_ptr@VItemInstance@@@std@@PEAVLevel@@HHHHV?$shared_ptr@VLivingEntity@@@3@@Z";
 static const char* SYM_DIGGERITEM_MINEBLOCK = "?mineBlock@DiggerItem@@UEAA_NV?$shared_ptr@VItemInstance@@@std@@PEAVLevel@@HHHHV?$shared_ptr@VLivingEntity@@@3@@Z";
 static const char* SYM_PICKAXEITEM_GETDESTROYSPEED = "?getDestroySpeed@PickaxeItem@@UEAAMV?$shared_ptr@VItemInstance@@@std@@PEAVTile@@@Z";
@@ -181,6 +184,11 @@ bool SymbolResolver::ResolveGameFunctions()
     pClockTextureGetSourceWidth = Resolve(SYM_CLOCK_GETSOURCEWIDTH);
     pClockTextureGetSourceHeight = Resolve(SYM_CLOCK_GETSOURCEHEIGHT);
     pItemInstanceMineBlock = Resolve(SYM_ITEMINSTANCE_MINEBLOCK);
+    pItemInstanceSave = Resolve(SYM_ITEMINSTANCE_SAVE);
+    pItemInstanceLoad = Resolve(SYM_ITEMINSTANCE_LOAD);
+    pTagNewTag = Resolve(SYM_TAG_NEWTAG);
+    if (!pTagNewTag)
+        pTagNewTag = ResolveExactProcName(m_moduleBase, "Tag::newTag");
     pItemMineBlock = Resolve(SYM_ITEM_MINEBLOCK);
     pDiggerItemMineBlock = Resolve(SYM_DIGGERITEM_MINEBLOCK);
     pPickaxeItemGetDestroySpeed = Resolve(SYM_PICKAXEITEM_GETDESTROYSPEED);
@@ -293,6 +301,9 @@ bool SymbolResolver::ResolveGameFunctions()
     logSym("ClockTexture::getSourceWidth", pClockTextureGetSourceWidth);
     logSym("ClockTexture::getSourceHeight", pClockTextureGetSourceHeight);
     logSym("ItemInstance::mineBlock", pItemInstanceMineBlock);
+    logSym("ItemInstance::save", pItemInstanceSave);
+    logSym("ItemInstance::load", pItemInstanceLoad);
+    logSym("Tag::newTag", pTagNewTag);
     logSym("Item::mineBlock", pItemMineBlock);
     logSym("DiggerItem::mineBlock", pDiggerItemMineBlock);
     logSym("PickaxeItem::getDestroySpeed", pPickaxeItemGetDestroySpeed);
