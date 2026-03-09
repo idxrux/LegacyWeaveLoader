@@ -255,6 +255,14 @@ namespace WorldIdRemap
         if (!itemTag)
             return;
 
+        // Never let placeholder IDs overwrite a previously saved real namespace.
+        if (namespacedId == kMissingItemId || namespacedId == kMissingBlockId)
+        {
+            std::wstring existingNamespace;
+            if (TryGetCompoundString(itemTag, kNamespaceTagKey, &existingNamespace) && !existingNamespace.empty())
+                return;
+        }
+
         const std::wstring namespacedWide(namespacedId.begin(), namespacedId.end());
         if (!PutCompoundString(itemTag, kNamespaceTagKey, namespacedWide))
             return;
