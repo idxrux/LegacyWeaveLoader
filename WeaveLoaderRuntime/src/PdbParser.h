@@ -15,6 +15,12 @@ namespace PdbParser
     // Logs all symbols whose name contains the given substring (for debugging).
     void DumpMatching(const char* substring);
 
+    // Logs a short list of likely DumpMatching() patterns for a missing symbol.
+    void DumpSimilar(const char* missingName);
+
+    // Writes a ranked full similarity dump to a file for a missing symbol.
+    void DumpSimilarFull(const char* missingName, const char* logPath, size_t maxResults = 200);
+
     // Builds a sorted index of all symbols for reverse RVA->name lookup.
     // Must be called while PDB is open. The index survives Close().
     void BuildAddressIndex();

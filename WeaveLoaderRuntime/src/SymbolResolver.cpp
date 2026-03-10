@@ -1,9 +1,55 @@
 #include "SymbolResolver.h"
 #include "PdbParser.h"
 #include "LogUtil.h"
+#include <Windows.h>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
+
+static bool HasExtensiveSymbolScanArg()
+{
+    const char* cmdLine = GetCommandLineA();
+    return cmdLine && std::strstr(cmdLine, "--extensive-symbol-scan") != nullptr;
+}
+
+static std::vector<std::string> g_pendingExtensiveSymbolScans;
+
+static void QueueExtensiveSymbolScan(const char* missingName)
+{
+    if (!HasExtensiveSymbolScanArg() || !missingName || !missingName[0])
+        return;
+
+    for (const std::string& existing : g_pendingExtensiveSymbolScans)
+    {
+        if (existing == missingName)
+            return;
+    }
+
+    g_pendingExtensiveSymbolScans.push_back(missingName);
+}
+
+static void RunQueuedExtensiveSymbolScanAndExit()
+{
+    if (!HasExtensiveSymbolScanArg())
+        return;
+
+    if (g_pendingExtensiveSymbolScans.empty())
+    {
+        LogUtil::Log("[WeaveLoader] Extensive symbol scan requested, but no unresolved symbols were queued");
+        return;
+    }
+
+    const char* logsDir = LogUtil::GetLogsDir();
+    std::string logPath = (logsDir && logsDir[0])
+        ? std::string(logsDir) + "similar_dumped_addresses.log"
+        : "similar_dumped_addresses.log";
+    LogUtil::Log("[WeaveLoader] Extensive symbol scan requested for %zu missing symbol(s)", g_pendingExtensiveSymbolScans.size());
+    for (const std::string& missingName : g_pendingExtensiveSymbolScans)
+        PdbParser::DumpSimilarFull(missingName.c_str(), logPath.c_str());
+    LogUtil::Log("[WeaveLoader] Extensive symbol scan complete, terminating process");
+    ExitProcess(0);
+}
 
 static const char* SYM_RUN_STATIC_CTORS     = "?MinecraftWorld_RunStaticCtors@@YAXXZ";
 static const char* SYM_MINECRAFT_TICK       = "?tick@Minecraft@@QEAAX_N0@Z";
@@ -98,7 +144,12 @@ static void* ResolveExactProcName(uintptr_t moduleBase, const char* exactName)
 {
     uint32_t rva = PdbParser::FindSymbolRVAByName(exactName);
     if (rva == 0)
+    {
+        LogUtil::Log("[WeaveLoader] Exact symbol not found in PDB: '%s'", exactName);
+        QueueExtensiveSymbolScan(exactName);
+        PdbParser::DumpSimilar(exactName);
         return nullptr;
+    }
     return reinterpret_cast<void*>(moduleBase + rva);
 }
 
@@ -147,6 +198,8 @@ void* SymbolResolver::Resolve(const char* decoratedName)
     if (rva == 0)
     {
         LogUtil::Log("[WeaveLoader] Symbol not found in PDB: '%s'", decoratedName);
+        QueueExtensiveSymbolScan(decoratedName);
+        PdbParser::DumpSimilar(decoratedName);
         return nullptr;
     }
 
@@ -388,6 +441,8 @@ bool SymbolResolver::ResolveGameFunctions()
         LogUtil::Log("[WeaveLoader] All critical symbols resolved (via raw PDB parser)");
     else
         LogUtil::Log("[WeaveLoader] CRITICAL symbols missing - hooks will not be installed");
+
+    RunQueuedExtensiveSymbolScanAndExit();
 
     return ok;
 }

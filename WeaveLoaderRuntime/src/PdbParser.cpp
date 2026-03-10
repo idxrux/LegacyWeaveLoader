@@ -1,7 +1,9 @@
 #include "PdbParser.h"
 #include "LogUtil.h"
 #include <Windows.h>
+#include <cctype>
 #include <cstring>
+#include <fstream>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -18,6 +20,13 @@
 #include "PDB_ModuleSymbolStream.h"
 #include "PDB_Util.h"
 #include "Foundation/PDB_BitUtil.h"
+
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 struct SymEntry
 {
@@ -45,6 +54,13 @@ static PDB::PublicSymbolStream* s_publicStream   = nullptr;
 static PDB::GlobalSymbolStream* s_globalStream   = nullptr;
 static PDB::ModuleInfoStream*   s_moduleStream   = nullptr;
 static PDB::CoalescedMSFStream* s_symbolRecords  = nullptr;
+
+struct SimilarMatch
+{
+    std::string name;
+    uint32_t    rva;
+    int         score;
+};
 
 static void CloseMappedFile(MappedFile& mf)
 {
@@ -206,6 +222,167 @@ static uint32_t ResolveProcRefRVA(uint16_t moduleIndex, uint32_t symbolOffset)
     }
 
     return 0;
+}
+
+static void AddUniquePattern(std::vector<std::string>& patterns, const std::string& pattern)
+{
+    if (pattern.empty())
+        return;
+
+    for (const std::string& existing : patterns)
+    {
+        if (existing == pattern)
+            return;
+    }
+
+    patterns.push_back(pattern);
+}
+
+static std::string ToLowerCopy(const char* text)
+{
+    std::string out = text ? text : "";
+    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return out;
+}
+
+static size_t CommonPrefixLength(const std::string& lhs, const std::string& rhs)
+{
+    const size_t limit = std::min(lhs.size(), rhs.size());
+    size_t n = 0;
+    while (n < limit && lhs[n] == rhs[n])
+        ++n;
+    return n;
+}
+
+static size_t GreedySubsequenceMatches(const std::string& needle, const std::string& haystack)
+{
+    size_t matched = 0;
+    size_t j = 0;
+    for (char c : needle)
+    {
+        while (j < haystack.size() && haystack[j] != c)
+            ++j;
+        if (j >= haystack.size())
+            break;
+        ++matched;
+        ++j;
+    }
+    return matched;
+}
+
+static size_t LevenshteinDistance(const std::string& lhs, const std::string& rhs)
+{
+    if (lhs.empty()) return rhs.size();
+    if (rhs.empty()) return lhs.size();
+
+    std::vector<size_t> prev(rhs.size() + 1);
+    std::vector<size_t> curr(rhs.size() + 1);
+    for (size_t j = 0; j <= rhs.size(); ++j)
+        prev[j] = j;
+
+    for (size_t i = 0; i < lhs.size(); ++i)
+    {
+        curr[0] = i + 1;
+        for (size_t j = 0; j < rhs.size(); ++j)
+        {
+            const size_t cost = (lhs[i] == rhs[j]) ? 0u : 1u;
+            curr[j + 1] = std::min({ prev[j + 1] + 1u, curr[j] + 1u, prev[j] + cost });
+        }
+        prev.swap(curr);
+    }
+
+    return prev[rhs.size()];
+}
+
+static int ScoreSimilarName(const std::string& missing, const std::string& candidate)
+{
+    if (candidate.empty())
+        return -1000000;
+
+    const size_t prefix = CommonPrefixLength(missing, candidate);
+    const size_t subseq = GreedySubsequenceMatches(missing, candidate);
+    const size_t distance = LevenshteinDistance(missing, candidate);
+    const bool contains = candidate.find(missing) != std::string::npos
+        || missing.find(candidate) != std::string::npos;
+
+    int score = 0;
+    if (contains) score += 200;
+    score += static_cast<int>(prefix * 8);
+    score += static_cast<int>(subseq * 3);
+    score -= static_cast<int>(distance * 4);
+    score -= static_cast<int>((missing.size() > candidate.size())
+        ? (missing.size() - candidate.size())
+        : (candidate.size() - missing.size()));
+    return score;
+}
+
+static void AddOrUpdateSimilar(std::vector<SimilarMatch>& out, const char* name, uint32_t rva, int score)
+{
+    if (!name || !name[0])
+        return;
+
+    for (SimilarMatch& entry : out)
+    {
+        if (entry.name == name)
+        {
+            if (score > entry.score)
+            {
+                entry.score = score;
+                entry.rva = rva;
+            }
+            return;
+        }
+    }
+
+    out.push_back({ name, rva, score });
+}
+
+static void ExtractExactNamePatterns(const char* missingName, std::vector<std::string>& patterns)
+{
+    const std::string name(missingName ? missingName : "");
+    if (name.empty())
+        return;
+
+    AddUniquePattern(patterns, name);
+
+    const size_t scopePos = name.rfind("::");
+    if (scopePos != std::string::npos)
+    {
+        AddUniquePattern(patterns, name.substr(scopePos + 2));
+        AddUniquePattern(patterns, name.substr(0, scopePos));
+    }
+}
+
+static void ExtractDecoratedNamePatterns(const char* missingName, std::vector<std::string>& patterns)
+{
+    const std::string name(missingName ? missingName : "");
+    if (name.empty())
+        return;
+
+    size_t start = 0;
+    while (start < name.size() && name[start] == '?')
+        ++start;
+
+    size_t end = name.find('@', start);
+    if (end != std::string::npos && end > start)
+        AddUniquePattern(patterns, name.substr(start, end - start));
+
+    size_t typeStart = end;
+    while (typeStart != std::string::npos && typeStart + 1 < name.size())
+    {
+        ++typeStart;
+        size_t typeEnd = name.find('@', typeStart);
+        if (typeEnd == std::string::npos || typeEnd == typeStart)
+            break;
+
+        const std::string token = name.substr(typeStart, typeEnd - typeStart);
+        if (token != "std" && token != "_W" && token != "_N" && token != "PEAV" && token != "QEAA")
+            AddUniquePattern(patterns, token);
+
+        typeStart = typeEnd;
+    }
 }
 
 namespace PdbParser
@@ -611,6 +788,138 @@ void DumpMatching(const char* substring)
     }
 
     LogUtil::Log("[WeaveLoader] PdbParser: found %d matching symbols", count);
+}
+
+void DumpSimilar(const char* missingName)
+{
+#ifndef WEAVELOADER_DEBUG_BUILD
+    (void)missingName;
+#else
+    if (!missingName || !missingName[0])
+        return;
+
+    LogUtil::Log("[WeaveLoader] PdbParser: symbol '%s' is missing. Run WeaveLoader.exe --extensive-symbol-scan for a full similarity dump.", missingName);
+#endif
+}
+
+void DumpSimilarFull(const char* missingName, const char* logPath, size_t maxResults)
+{
+    if (!s_open || !missingName || !missingName[0] || !logPath || !logPath[0])
+        return;
+
+    std::ofstream out(logPath, std::ios::out | std::ios::app);
+    if (!out.is_open())
+    {
+        LogUtil::Log("[WeaveLoader] PdbParser: failed to open full similarity log '%s'", logPath);
+        return;
+    }
+
+    out << "[WeaveLoader] Full similar symbol dump\n";
+    out << "[WeaveLoader] Missing symbol: " << missingName << "\n";
+
+    std::vector<SimilarMatch> matches;
+    matches.reserve(4096);
+    const std::string missingLower = ToLowerCopy(missingName);
+
+    {
+        const PDB::ArrayView<PDB::HashRecord> records = s_publicStream->GetRecords();
+        for (const PDB::HashRecord& hashRecord : records)
+        {
+            const PDB::CodeView::DBI::Record* record = s_publicStream->GetRecord(*s_symbolRecords, hashRecord);
+            if (record->header.kind != PDB::CodeView::DBI::SymbolRecordKind::S_PUB32)
+                continue;
+
+            const char* name = record->data.S_PUB32.name;
+            const int score = ScoreSimilarName(missingLower, ToLowerCopy(name));
+            if (score <= 0)
+                continue;
+
+            const uint32_t rva = s_sectionStream->ConvertSectionOffsetToRVA(
+                record->data.S_PUB32.section, record->data.S_PUB32.offset);
+            AddOrUpdateSimilar(matches, name, rva, score);
+        }
+    }
+
+    {
+        const PDB::ArrayView<PDB::HashRecord> records = s_globalStream->GetRecords();
+        for (const PDB::HashRecord& hashRecord : records)
+        {
+            const PDB::CodeView::DBI::Record* record = s_globalStream->GetRecord(*s_symbolRecords, hashRecord);
+            uint16_t section = 0;
+            uint32_t offset = 0;
+            const char* name = GetGlobalSymName(record, section, offset);
+            if (!name)
+                continue;
+
+            const int score = ScoreSimilarName(missingLower, ToLowerCopy(name));
+            if (score <= 0)
+                continue;
+
+            const uint32_t rva = s_sectionStream->ConvertSectionOffsetToRVA(section, offset);
+            AddOrUpdateSimilar(matches, name, rva, score);
+        }
+    }
+
+    {
+        const PDB::ArrayView<PDB::ModuleInfoStream::Module> modules = s_moduleStream->GetModules();
+        for (const PDB::ModuleInfoStream::Module& mod : modules)
+        {
+            if (!mod.HasSymbolStream())
+                continue;
+
+            const PDB::ModuleSymbolStream modSymStream = mod.CreateSymbolStream(*s_rawFile);
+            modSymStream.ForEachSymbol([&](const PDB::CodeView::DBI::Record* record)
+            {
+                const char* name = nullptr;
+                uint16_t section = 0;
+                uint32_t offset = 0;
+
+                switch (record->header.kind)
+                {
+                case PDB::CodeView::DBI::SymbolRecordKind::S_LPROC32:
+                    name = record->data.S_LPROC32.name; section = record->data.S_LPROC32.section; offset = record->data.S_LPROC32.offset; break;
+                case PDB::CodeView::DBI::SymbolRecordKind::S_GPROC32:
+                    name = record->data.S_GPROC32.name; section = record->data.S_GPROC32.section; offset = record->data.S_GPROC32.offset; break;
+                case PDB::CodeView::DBI::SymbolRecordKind::S_LPROC32_ID:
+                    name = record->data.S_LPROC32_ID.name; section = record->data.S_LPROC32_ID.section; offset = record->data.S_LPROC32_ID.offset; break;
+                case PDB::CodeView::DBI::SymbolRecordKind::S_GPROC32_ID:
+                    name = record->data.S_GPROC32_ID.name; section = record->data.S_GPROC32_ID.section; offset = record->data.S_GPROC32_ID.offset; break;
+                case PDB::CodeView::DBI::SymbolRecordKind::S_LDATA32:
+                    name = record->data.S_LDATA32.name; section = record->data.S_LDATA32.section; offset = record->data.S_LDATA32.offset; break;
+                case PDB::CodeView::DBI::SymbolRecordKind::S_GDATA32:
+                    name = record->data.S_GDATA32.name; section = record->data.S_GDATA32.section; offset = record->data.S_GDATA32.offset; break;
+                default:
+                    return;
+                }
+
+                const int score = ScoreSimilarName(missingLower, ToLowerCopy(name));
+                if (score <= 0)
+                    return;
+
+                const uint32_t rva = s_sectionStream->ConvertSectionOffsetToRVA(section, offset);
+                AddOrUpdateSimilar(matches, name, rva, score);
+            });
+        }
+    }
+
+    std::sort(matches.begin(), matches.end(), [](const SimilarMatch& a, const SimilarMatch& b) {
+        if (a.score != b.score) return a.score > b.score;
+        if (a.rva != b.rva) return a.rva < b.rva;
+        return a.name < b.name;
+    });
+
+    out << "[WeaveLoader] Similar matches: " << matches.size() << "\n";
+    const size_t count = std::min(maxResults, matches.size());
+    for (size_t i = 0; i < count; ++i)
+    {
+        char hexBuf[16];
+        std::snprintf(hexBuf, sizeof(hexBuf), "%08X", matches[i].rva);
+        out << "[SIM score=" << matches[i].score << "] rva=0x" << hexBuf << " " << matches[i].name << "\n";
+    }
+    out << "\n";
+    out.flush();
+
+    LogUtil::Log("[WeaveLoader] PdbParser: wrote full similarity dump for '%s' to %s", missingName, logPath);
 }
 
 void BuildAddressIndex()

@@ -24,11 +24,21 @@ class Program
         try
         {
             var config = Config.Load(configFile);
+            bool extensiveSymbolScan = false;
 
-            if (args.Length > 0 && File.Exists(args[0]))
+            foreach (string arg in args)
             {
-                config.GameExePath = args[0];
-                config.Save(configFile);
+                if (arg == "--extensive-symbol-scan")
+                {
+                    extensiveSymbolScan = true;
+                    continue;
+                }
+
+                if (File.Exists(arg))
+                {
+                    config.GameExePath = arg;
+                    config.Save(configFile);
+                }
             }
 
             if (string.IsNullOrEmpty(config.GameExePath) || !File.Exists(config.GameExePath))
@@ -72,8 +82,12 @@ class Program
             int modCount = Directory.GetFiles(modsDir, "*.dll").Length;
             Console.WriteLine($"Found {modCount} mod(s) in mods/");
             Console.WriteLine($"Launching {Path.GetFileName(config.GameExePath)}...");
+            if (extensiveSymbolScan)
+                Console.WriteLine("[..] Extensive symbol scan mode enabled");
 
-            var process = Injector.LaunchSuspended(config.GameExePath);
+            var process = Injector.LaunchSuspended(
+                config.GameExePath,
+                extraArgs: extensiveSymbolScan ? "--extensive-symbol-scan" : null);
             Console.WriteLine($"[OK] Game process created (PID: {process.ProcessId})");
             Console.WriteLine($"[..] Injecting {RuntimeDllName}...");
 

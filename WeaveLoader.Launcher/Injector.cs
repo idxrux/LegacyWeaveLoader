@@ -16,15 +16,18 @@ public static class Injector
         IntPtr ThreadHandle,
         int ProcessId);
 
-    public static InjectedProcess LaunchSuspended(string exePath, string? workingDir = null)
+    public static InjectedProcess LaunchSuspended(string exePath, string? workingDir = null, string? extraArgs = null)
     {
         workingDir ??= Path.GetDirectoryName(exePath);
+        string commandLine = $"\"{exePath}\"";
+        if (!string.IsNullOrWhiteSpace(extraArgs))
+            commandLine += " " + extraArgs;
 
         var si = new STARTUPINFO { cb = Marshal.SizeOf<STARTUPINFO>() };
 
         bool success = CreateProcess(
             exePath,
-            null,
+            commandLine,
             IntPtr.Zero,
             IntPtr.Zero,
             false,
