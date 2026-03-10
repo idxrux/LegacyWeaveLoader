@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cwctype>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -59,6 +60,39 @@ namespace ModAtlas
     static thread_local int s_pendingPage = 0;
     static thread_local bool s_buildInProgress = false;
     static bool s_applyMergedToBufferedImage = false;
+
+    static constexpr int kTerrainGridCols = 16;
+    // Rows used by vanilla UVs in PreStitchedTextureMap (rows 0-19 inclusive).
+    // Keeping these reserved prevents transparent-but-used tiles (e.g., redstone)
+    // from being treated as empty during mod atlas packing.
+    static constexpr int kReservedTerrainRows = 20;
+
+    static int GetMaxTerrainAtlasPixels()
+    {
+        static int s_maxPixels = -1;
+        if (s_maxPixels >= 0)
+            return s_maxPixels;
+
+        s_maxPixels = 4096;
+        const char* env = std::getenv("WEAVELOADER_TERRAIN_MAX_PX");
+        if (env && *env)
+        {
+            int value = std::atoi(env);
+            if (value >= 512)
+                s_maxPixels = value;
+        }
+        return s_maxPixels;
+    }
+
+    static bool IsReservedTerrainCell(int row, int col)
+    {
+        if (row < 0 || col < 0 || col >= kTerrainGridCols)
+            return false;
+        const int reserveRows = (s_terrainBaseRows < kReservedTerrainRows)
+            ? s_terrainBaseRows
+            : kReservedTerrainRows;
+        return row < reserveRows;
+    }
 
     // CreateFileW hook: redirect game file opens to merged atlases
     static std::wstring s_mergedTerrainW;
@@ -282,6 +316,8 @@ namespace ModAtlas
         {
             for (int col = 0; col < gridCols; col++)
             {
+                if (atlasType == 0 && IsReservedTerrainCell(row, col))
+                    continue;
                 if (IsCellEmpty(baseImg.data(), baseW, baseH, col * iconSize, row * iconSize, iconSize))
                     emptyCells.push_back({ row, col });
             }
@@ -290,10 +326,24 @@ namespace ModAtlas
         const size_t totalMods = (startIndex < modTextures.size()) ? (modTextures.size() - startIndex) : 0;
         const size_t baseCapacity = emptyCells.size();
         const size_t extraNeeded = (totalMods > baseCapacity) ? (totalMods - baseCapacity) : 0;
-        const int extraRows = (extraNeeded > 0)
+        int extraRows = (extraNeeded > 0)
             ? (int)((extraNeeded + (size_t)gridCols - 1) / (size_t)gridCols)
             : 0;
-        const int totalRows = baseRows + extraRows;
+        int totalRows = baseRows + extraRows;
+
+        if (atlasType == 0)
+        {
+            const int maxPixels = GetMaxTerrainAtlasPixels();
+            int maxRows = (iconSize > 0) ? (maxPixels / iconSize) : 0;
+            if (maxRows < baseRows)
+                maxRows = baseRows;
+            if (totalRows > maxRows)
+            {
+                LogUtil::Log("[WeaveLoader] ModAtlas: terrain rows clamped %d -> %d (maxPx=%d icon=%d)",
+                             totalRows, maxRows, maxPixels, iconSize);
+                totalRows = maxRows;
+            }
+        }
 
         const int imgW = baseW;
         const int imgH = totalRows * iconSize;
@@ -309,6 +359,7 @@ namespace ModAtlas
                      baseW, baseH, baseRows, iconSize, emptyCells.size(), extraRows, totalRows);
 
         size_t consumed = 0;
+        const int maxExtraCells = (totalRows > baseRows) ? ((totalRows - baseRows) * gridCols) : 0;
         size_t cellIdx = 0;
         size_t extraIdx = 0;
         for (size_t texIdx = startIndex; texIdx < modTextures.size(); ++texIdx)
@@ -327,6 +378,12 @@ namespace ModAtlas
             }
             else
             {
+                if ((int)extraIdx >= maxExtraCells)
+                {
+                    LogUtil::Log("[WeaveLoader] ModAtlas: atlas capacity reached (page=%d, rows=%d); skipping remaining textures",
+                                 page, totalRows);
+                    break;
+                }
                 row = baseRows + (int)(extraIdx / (size_t)gridCols);
                 col = (int)(extraIdx % (size_t)gridCols);
                 extraIdx++;
