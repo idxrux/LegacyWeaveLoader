@@ -100,6 +100,9 @@ public:
     void* pTextureAtlasLocationBlocks = nullptr; // TextureAtlas::LOCATION_BLOCKS
     void* pTextureAtlasLocationItems = nullptr;  // TextureAtlas::LOCATION_ITEMS
     void* pTileTiles = nullptr;                  // Tile::tiles (Tile*[]) for tile id lookup
+    void* pMinecraftApp = nullptr;               // global CMinecraftApp app
+    void* pGetMinecraftLanguage = nullptr;       // CMinecraftApp::GetMinecraftLanguage(int)
+    void* pGetMinecraftLocale = nullptr;         // CMinecraftApp::GetMinecraftLocale(int)
     void* pLevelHasNeighborSignal = nullptr;     // Level::hasNeighborSignal(int,int,int)
     void* pLevelSetTileAndData = nullptr;        // Level::setTileAndData(int,int,int,int,int,int)
     void* pLevelAddToTickNextTick = nullptr;     // Level::addToTickNextTick(int,int,int,int,int)

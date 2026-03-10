@@ -205,17 +205,17 @@ public class MyMod : IMod
                 .Hardness(3.0f)
                 .Resistance(15.0f)
                 .Sound(SoundType.Stone)
-                .Icon("mymod:example_ore")
+                .Icon("mymod:block/example_ore")
                 .InCreativeTab(CreativeTab.BuildingBlocks)
-                .Name("Example Ore"));
+                .Name(Text.Translatable("block.mymod.example_ore")));
 
         // Register an item
         var gem = Registry.Item.Register("mymod:example_gem",
             new ItemProperties()
                 .MaxStackSize(64)
-                .Icon("mymod:example_gem")
+                .Icon("mymod:item/example_gem")
                 .InCreativeTab(CreativeTab.Materials)
-                .Name("Example Gem"));
+                .Name(Text.Translatable("item.mymod.example_gem")));
 
         // Add a smelting recipe
         Registry.Recipe.AddFurnace("mymod:example_ore", "mymod:example_gem", 1.0f);
@@ -239,15 +239,43 @@ Place 16x16 PNG textures in your mod's assets folder:
 ```
 MyMod/
 ├── assets/
-│   ├── blocks/
-│   │   └── example_ore.png     # Block texture
-│   └── items/
-│       └── example_gem.png     # Item texture
+│   └── mymod/
+│       └── textures/
+│           ├── block/
+│           │   └── example_ore.png     # Block texture
+│           └── item/
+│               └── example_gem.png     # Item texture
 ├── MyMod.cs
 └── MyMod.csproj
 ```
 
-The icon name in `BlockProperties.Icon()` / `ItemProperties.Icon()` uses the format `"modid:texture_name"` where `texture_name` matches the PNG filename (without extension).
+The icon name in `BlockProperties.Icon()` / `ItemProperties.Icon()` uses Java-style names like:
+
+```csharp
+.Icon("mymod:block/example_ore")
+.Icon("mymod:item/example_gem")
+```
+
+### 4b. Add models (block/item/entity)
+
+Place Java-style JSON model files under an `assets/<namespace>/models/` tree inside your mod folder:
+
+```
+MyMod/
+├── assets/
+│   └── mymod/
+│       └── models/
+│           ├── block/
+│           │   └── example_ore.json
+│           ├── item/
+│           │   └── example_gem.json
+│           └── entity/
+│               └── example_entity.json  # reserved for future entity model support
+├── MyMod.cs
+└── MyMod.csproj
+```
+
+The `namespace` folder should match your mod's ID (lowercase).
 
 ### 5. Build and run
 
@@ -322,6 +350,13 @@ All log output goes to `logs/weaveloader.log` with timestamps and log level pref
 
 Namespaced string IDs follow the `"namespace:path"` convention (e.g., `"mymod:ruby_ore"`). If no namespace is provided, `"minecraft"` is assumed.
 
+### Localization
+
+Use `Text.Translatable("item.examplemod.ruby")` for localized names or `Text.Literal("Ruby")` for fixed text.
+Language files live at `assets/<namespace>/lang/<locale>.lang` using `key=value` lines.
+By default, WeaveLoader follows the game's current language selection; disable with `Localization.UseGameLanguage = false`.
+If the game reports "system default", the locale falls back to the system UI culture; override with `Localization.Locale = "en-GB"`.
+
 ## ID Ranges
 
 | Type | Numeric Range | Notes |
@@ -338,13 +373,19 @@ The runtime opens the game's PDB file and parses it using [raw_pdb](https://gith
 
 ### Texture Atlas Merging
 
-1. Mod textures are discovered in `mods/*/assets/blocks/` and `mods/*/assets/items/`
+1. Mod textures are discovered in `mods/*/assets/<namespace>/textures/block/` and `mods/*/assets/<namespace>/textures/item/`
 2. The vanilla `terrain.png` (16x32 grid) and `items.png` (16x16 grid) are loaded via stb_image
 3. Empty cells are identified by checking for fully transparent pixels
 4. Mod textures are placed into empty cells
 5. The merged atlas is written to `mods/ModLoader/generated/` -- **vanilla game files are never modified**
 6. A `CreateFileW` hook temporarily redirects the game's file opens to the merged atlases during init, then is removed once textures are loaded into GPU memory
 7. `SimpleIcon` objects are created for each mod texture with correct UV coordinates
+
+### Model Asset Overlay
+
+When the game requests `assets/<namespace>/models/...` via `InputStream::getResourceAsStream`,
+WeaveLoader will redirect to a matching file inside `mods/*/assets/<namespace>/models/`.
+Block and item models are supported today; `models/entity/` is wired up for future use.
 
 ### String Table Injection
 

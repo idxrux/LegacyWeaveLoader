@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -113,12 +114,64 @@ namespace ModAtlas
         return r;
     }
 
+    static bool HasPngExtension(const std::string& name)
+    {
+        if (name.size() < 4) return false;
+        char a = (char)tolower((unsigned char)name[name.size() - 4]);
+        char b = (char)tolower((unsigned char)name[name.size() - 3]);
+        char c = (char)tolower((unsigned char)name[name.size() - 2]);
+        char d = (char)tolower((unsigned char)name[name.size() - 1]);
+        return a == '.' && b == 'p' && c == 'n' && d == 'g';
+    }
+
+    static void ScanPngTree(const std::string& dir,
+                            const std::string& baseDir,
+                            const std::string& iconPrefix,
+                            std::vector<std::pair<std::string, std::string>>& out,
+                            std::unordered_set<std::string>& seen)
+    {
+        WIN32_FIND_DATAA fd;
+        std::string search = dir + "\\*";
+        HANDLE h = FindFirstFileA(search.c_str(), &fd);
+        if (h == INVALID_HANDLE_VALUE) return;
+        do
+        {
+            if (fd.cFileName[0] == '.') continue;
+            std::string fullPath = dir + "\\" + fd.cFileName;
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+                ScanPngTree(fullPath, baseDir, iconPrefix, out, seen);
+                continue;
+            }
+            if (!HasPngExtension(fd.cFileName)) continue;
+
+            if (fullPath.size() <= baseDir.size()) continue;
+            std::string rel = fullPath.substr(baseDir.size());
+            if (!rel.empty() && (rel[0] == '\\' || rel[0] == '/'))
+                rel.erase(0, 1);
+            for (char& ch : rel)
+            {
+                if (ch == '\\') ch = '/';
+            }
+            if (rel.size() < 4) continue;
+            rel.resize(rel.size() - 4);
+            rel = ToLower(rel);
+
+            std::string iconName = iconPrefix + rel;
+            if (seen.insert(iconName).second)
+                out.push_back({ iconName, fullPath });
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+
     static void FindModTextures(const std::string& modsPath,
                                 std::vector<std::pair<std::string, std::string>>& blocks,
                                 std::vector<std::pair<std::string, std::string>>& items)
     {
         blocks.clear();
         items.clear();
+        std::unordered_set<std::string> seenBlocks;
+        std::unordered_set<std::string> seenItems;
 
         WIN32_FIND_DATAA fd;
         std::string search = modsPath + "\\*";
@@ -134,34 +187,31 @@ namespace ModAtlas
             std::string assetsPath = modFolder + "\\assets";
             if (GetFileAttributesA(assetsPath.c_str()) != INVALID_FILE_ATTRIBUTES)
             {
-                std::string modId = ToLower(fd.cFileName);
-                size_t pos = modId.find('-');
-                while (pos != std::string::npos) { modId.erase(pos, 1); pos = modId.find('-'); }
-
-                std::string blocksPath = assetsPath + "\\blocks";
-                std::string itemsPath = assetsPath + "\\items";
-
-                auto scanDir = [&](const std::string& dir, std::vector<std::pair<std::string, std::string>>& out, const std::string& prefix)
+                // Java-style assets: assets/<namespace>/textures/block|item/*.png
+                WIN32_FIND_DATAA nsfd;
+                std::string nsSearch = assetsPath + "\\*";
+                HANDLE hNs = FindFirstFileA(nsSearch.c_str(), &nsfd);
+                if (hNs != INVALID_HANDLE_VALUE)
                 {
-                    std::string search2 = dir + "\\*.png";
-                    HANDLE h2 = FindFirstFileA(search2.c_str(), &fd);
-                    if (h2 == INVALID_HANDLE_VALUE) return;
                     do
                     {
-                        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
-                        std::string name = fd.cFileName;
-                        name.resize(name.size() - 4);
-                        std::string iconName = modId + ":" + name;
-                        std::string fullPath = dir + "\\" + fd.cFileName;
-                        out.push_back({ iconName, fullPath });
-                    } while (FindNextFileA(h2, &fd));
-                    FindClose(h2);
-                };
+                        if (!(nsfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+                        if (nsfd.cFileName[0] == '.') continue;
 
-                if (GetFileAttributesA(blocksPath.c_str()) == FILE_ATTRIBUTE_DIRECTORY)
-                    scanDir(blocksPath, blocks, "blocks");
-                if (GetFileAttributesA(itemsPath.c_str()) == FILE_ATTRIBUTE_DIRECTORY)
-                    scanDir(itemsPath, items, "items");
+                        std::string nsFolder = nsfd.cFileName;
+                        std::string nsName = ToLower(nsFolder);
+                        std::string nsPath = assetsPath + "\\" + nsFolder;
+                        std::string texturesPath = nsPath + "\\textures";
+                        std::string blocksPath = texturesPath + "\\block";
+                        std::string itemsPath = texturesPath + "\\item";
+
+                        if (GetFileAttributesA(blocksPath.c_str()) == FILE_ATTRIBUTE_DIRECTORY)
+                            ScanPngTree(blocksPath, blocksPath, nsName + ":block/", blocks, seenBlocks);
+                        if (GetFileAttributesA(itemsPath.c_str()) == FILE_ATTRIBUTE_DIRECTORY)
+                            ScanPngTree(itemsPath, itemsPath, nsName + ":item/", items, seenItems);
+                    } while (FindNextFileA(hNs, &nsfd));
+                    FindClose(hNs);
+                }
             }
         } while (FindNextFileA(h, &fd));
         FindClose(h);

@@ -195,8 +195,8 @@ public class ExampleMod : IMod
                 .Hardness(3.0f)
                 .Resistance(15f)
                 .Sound(SoundType.Stone)
-                .Icon("examplemod:ruby_ore")  // From assets/blocks/ruby_ore.png
-                .Name("Ruby Ore")
+                .Icon("examplemod:block/ruby_ore")
+                .Name(Text.Translatable("block.examplemod.ruby_ore"))
                 .RequiredHarvestLevel(2)
                 .RequiredTool(ToolType.Pickaxe)
                 .InCreativeTab(CreativeTab.BuildingBlocks));
@@ -207,8 +207,8 @@ public class ExampleMod : IMod
                 .Hardness(1.5f)
                 .Resistance(10f)
                 .Sound(SoundType.Stone)
-                .Icon("examplemod:ruby_stone")
-                .Name("Ruby Stone")
+                .Icon("examplemod:block/ruby_stone")
+                .Name(Text.Translatable("block.examplemod.ruby_stone"))
                 .RequiredHarvestLevel(1)
                 .RequiredTool(ToolType.Pickaxe)
                 .InCreativeTab(CreativeTab.BuildingBlocks));
@@ -219,8 +219,8 @@ public class ExampleMod : IMod
                 .Hardness(2.0f)
                 .Resistance(5f)
                 .Sound(SoundType.Wood)
-                .Icon("examplemod:ruby_wood_planks")
-                .Name("Ruby Wood Planks")
+                .Icon("examplemod:block/ruby_wood_planks")
+                .Name(Text.Translatable("block.examplemod.ruby_wood_planks"))
                 .InCreativeTab(CreativeTab.BuildingBlocks));
 
         RubySand = Registry.Block.Register("examplemod:ruby_sand",
@@ -230,8 +230,8 @@ public class ExampleMod : IMod
                 .Hardness(0.5f)
                 .Resistance(2.5f)
                 .Sound(SoundType.Sand)
-                .Icon("examplemod:ruby_sand")
-                .Name("Ruby Sand")
+                .Icon("examplemod:block/ruby_sand")
+                .Name(Text.Translatable("block.examplemod.ruby_sand"))
                 .RequiredTool(ToolType.Shovel)
                 .InCreativeTab(CreativeTab.BuildingBlocks));
 
@@ -242,8 +242,8 @@ public class ExampleMod : IMod
                 .Hardness(1.5f)
                 .Resistance(10f)
                 .Sound(SoundType.Stone)
-                .Icon("examplemod:ruby_stone")
-                .Name("Ruby Stone Slab")
+                .Icon("examplemod:block/ruby_stone")
+                .Name(Text.Translatable("block.examplemod.ruby_stone_slab"))
                 .RequiredHarvestLevel(1)
                 .RequiredTool(ToolType.Pickaxe)
                 .InCreativeTab(CreativeTab.BuildingBlocks));
@@ -255,8 +255,8 @@ public class ExampleMod : IMod
                 .Hardness(2.0f)
                 .Resistance(5f)
                 .Sound(SoundType.Wood)
-                .Icon("examplemod:ruby_wood_planks")
-                .Name("Ruby Wood Slab")
+                .Icon("examplemod:block/ruby_wood_planks")
+                .Name(Text.Translatable("block.examplemod.ruby_wood_slab"))
                 .InCreativeTab(CreativeTab.BuildingBlocks));
 
         RubyLamp = Registry.Block.Register("examplemod:ruby_lamp", new RubyLampBlock(false),
@@ -265,8 +265,8 @@ public class ExampleMod : IMod
                 .Hardness(0.3f)
                 .Resistance(1.5f)
                 .Sound(SoundType.Glass)
-                .Icon("examplemod:ruby_lamp")
-                .Name("Ruby Lamp")
+                .Icon("examplemod:block/ruby_lamp")
+                .Name(Text.Translatable("block.examplemod.ruby_lamp"))
                 .RequiredHarvestLevel(0)
                 .RequiredTool(ToolType.Pickaxe)
                 .AcceptsRedstonePower()
@@ -283,9 +283,9 @@ public class ExampleMod : IMod
                 .Hardness(0.3f)
                 .Resistance(1.5f)
                 .Sound(SoundType.Glass)
-                .Icon("examplemod:ruby_lamp_on")
+                .Icon("examplemod:block/ruby_lamp_on")
                 .LightLevel(1.0f)
-                .Name("Ruby Lamp")
+                .Name(Text.Translatable("block.examplemod.ruby_lamp_lit"))
                 .RequiredHarvestLevel(0)
                 .RequiredTool(ToolType.Pickaxe)
                 .AcceptsRedstonePower());
@@ -296,8 +296,8 @@ public class ExampleMod : IMod
                 .Hardness(5.0f)
                 .Resistance(30f)
                 .Sound(SoundType.Metal)
-                .Icon("examplemod:orichalcum_ore")  // From assets/blocks/orichalcum.png
-                .Name("Orichalcum Ore")
+                .Icon("examplemod:block/orichalcum_ore")
+                .Name(Text.Translatable("block.examplemod.orichalcum_ore"))
                 .RequiredHarvestLevel(4)
                 .RequiredTool(ToolType.Pickaxe)
                 .InCreativeTab(CreativeTab.BuildingBlocks));
@@ -305,8 +305,8 @@ public class ExampleMod : IMod
         Ruby = Registry.Item.Register("examplemod:ruby",
             new ItemProperties()
                 .MaxStackSize(64)
-                .Icon("examplemod:ruby")  // From assets/items/ruby.png
-                .Name("Ruby")
+                .Icon("examplemod:item/ruby")
+                .Name(Text.Translatable("item.examplemod.ruby"))
                 .InCreativeTab(CreativeTab.Materials));
 
         Registry.Item.RegisterToolMaterial("examplemod:ruby_material",
@@ -320,8 +320,8 @@ public class ExampleMod : IMod
                 .MaxStackSize(1)
                 .MaxDamage(512)
                 .AttackDamage(8.0f)
-                .Icon("examplemod:ruby_sword")
-                .Name("Ruby Sword")
+                .Icon("examplemod:item/ruby_sword")
+                .Name(Text.Translatable("item.examplemod.ruby_sword"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 
         RubyShovelItem = Registry.Item.Register("examplemod:ruby_shovel", new RubyShovel { CustomMaterialId = "examplemod:ruby_material" },
@@ -329,8 +329,8 @@ public class ExampleMod : IMod
                 .MaxStackSize(1)
                 .MaxDamage(512)
                 .AttackDamage(4.5f)
-                .Icon("examplemod:ruby_shovel")
-                .Name("Ruby Shovel")
+                .Icon("examplemod:item/ruby_shovel")
+                .Name(Text.Translatable("item.examplemod.ruby_shovel"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 
         RubyPickaxeItem = Registry.Item.Register("examplemod:ruby_pickaxe", new RubyPickaxe { CustomMaterialId = "examplemod:ruby_material" },
@@ -338,8 +338,8 @@ public class ExampleMod : IMod
                 .MaxStackSize(1)
                 .MaxDamage(512)
                 .AttackDamage(5.0f)
-                .Icon("examplemod:ruby_pickaxe")  // From assets/items/ruby_pickaxe.png
-                .Name("Ruby Pickaxe")
+                .Icon("examplemod:item/ruby_pickaxe")
+                .Name(Text.Translatable("item.examplemod.ruby_pickaxe"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 
         RubyAxeItem = Registry.Item.Register("examplemod:ruby_axe", new RubyAxe { CustomMaterialId = "examplemod:ruby_material" },
@@ -347,8 +347,8 @@ public class ExampleMod : IMod
                 .MaxStackSize(1)
                 .MaxDamage(512)
                 .AttackDamage(7.0f)
-                .Icon("examplemod:ruby_axe")
-                .Name("Ruby Axe")
+                .Icon("examplemod:item/ruby_axe")
+                .Name(Text.Translatable("item.examplemod.ruby_axe"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 
         RubyHoeItem = Registry.Item.Register("examplemod:ruby_hoe", new RubyHoe { CustomMaterialId = "examplemod:ruby_material" },
@@ -356,15 +356,15 @@ public class ExampleMod : IMod
                 .MaxStackSize(1)
                 .MaxDamage(512)
                 .AttackDamage(1.0f)
-                .Icon("examplemod:ruby_hoe")
-                .Name("Ruby Hoe")
+                .Icon("examplemod:item/ruby_hoe")
+                .Name(Text.Translatable("item.examplemod.ruby_hoe"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 
         RubyWandItem = Registry.Item.Register("examplemod:ruby_wand", new RubyWand(),
             new ItemProperties()
                 .MaxStackSize(1)
-                .Icon("examplemod:ruby_wand")  // From assets/items/ruby_wand.png
-                .Name("Ruby Wand")
+                .Icon("examplemod:item/ruby_wand")
+                .Name(Text.Translatable("item.examplemod.ruby_wand"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 
         Registry.Recipe.AddFurnace("examplemod:ruby_ore", "examplemod:ruby", 1.0f);

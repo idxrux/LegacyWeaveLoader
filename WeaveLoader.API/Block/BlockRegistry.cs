@@ -59,7 +59,7 @@ public static class BlockRegistry
             properties.IconValue,
             properties.LightEmissionValue,
             properties.LightBlockValue,
-            properties.NameValue ?? "",
+            properties.NameValue?.Resolve() ?? "",
             properties.RequiredHarvestLevelValue,
             (int)properties.RequiredToolValue,
             properties.AcceptsRedstonePowerValue ? 1 : 0);
@@ -98,7 +98,7 @@ public static class BlockRegistry
             properties.IconValue,
             properties.LightEmissionValue,
             properties.LightBlockValue,
-            properties.NameValue ?? "",
+            properties.NameValue?.Resolve() ?? "",
             properties.RequiredHarvestLevelValue,
             (int)properties.RequiredToolValue,
             properties.AcceptsRedstonePowerValue ? 1 : 0);
@@ -144,7 +144,7 @@ public static class BlockRegistry
             properties.IconValue,
             properties.LightEmissionValue,
             properties.LightBlockValue,
-            properties.NameValue ?? "",
+            properties.NameValue?.Resolve() ?? "",
             properties.RequiredHarvestLevelValue,
             (int)properties.RequiredToolValue,
             properties.AcceptsRedstonePowerValue ? 1 : 0);
@@ -191,7 +191,7 @@ public static class BlockRegistry
             properties.IconValue,
             properties.LightEmissionValue,
             properties.LightBlockValue,
-            properties.NameValue ?? "",
+            properties.NameValue?.Resolve() ?? "",
             properties.RequiredHarvestLevelValue,
             (int)properties.RequiredToolValue,
             properties.AcceptsRedstonePowerValue ? 1 : 0,

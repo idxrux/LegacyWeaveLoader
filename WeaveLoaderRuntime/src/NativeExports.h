@@ -1,8 +1,12 @@
 #pragma once
 
+#include <string>
+
 namespace NativeExports
 {
     void SetLevelInteropSymbols(void* hasNeighborSignal, void* setTileAndData, void* addToTickNextTick, void* getTile);
+    void SetLocalizationSymbols(void* appPtr, void* getLanguage, void* getLocale);
+    void SetModsPath(const std::string& modsPath);
 }
 
 /// Exported C functions callable from C# via P/Invoke.
@@ -119,6 +123,9 @@ extern "C"
 
     __declspec(dllexport) int native_allocate_description_id();
     __declspec(dllexport) void native_register_string(int descriptionId, const char* displayName);
+    __declspec(dllexport) int native_get_minecraft_language();
+    __declspec(dllexport) int native_get_minecraft_locale();
+    __declspec(dllexport) const char* native_get_mods_path();
 
     __declspec(dllexport) int native_register_entity(
         const char* namespacedId,

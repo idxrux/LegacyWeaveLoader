@@ -679,6 +679,10 @@ bool HookManager::Install(const SymbolResolver& symbols)
         symbols.pServerLevelAddToTickNextTick ? symbols.pServerLevelAddToTickNextTick
                                               : symbols.pLevelAddToTickNextTick,
         symbols.pLevelGetTile);
+    NativeExports::SetLocalizationSymbols(
+        symbols.pMinecraftApp,
+        symbols.pGetMinecraftLanguage,
+        symbols.pGetMinecraftLocale);
 
     if (symbols.pTexturesBindTextureResource)
     {

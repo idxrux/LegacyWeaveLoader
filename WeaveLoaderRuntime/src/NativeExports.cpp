@@ -26,6 +26,13 @@ namespace
     LevelSetTileAndData_fn s_levelSetTileAndData = nullptr;
     LevelAddToTickNextTick_fn s_levelAddToTickNextTick = nullptr;
     LevelGetTile_fn s_levelGetTile = nullptr;
+
+    using GetMinecraftLanguage_fn = unsigned char (__fastcall *)(void* thisPtr, int pad);
+    void* s_minecraftApp = nullptr;
+    GetMinecraftLanguage_fn s_getMinecraftLanguage = nullptr;
+    GetMinecraftLanguage_fn s_getMinecraftLocale = nullptr;
+    bool s_loggedMissingLanguage = false;
+    std::string s_modsPath;
 }
 
 void NativeExports::SetLevelInteropSymbols(void* hasNeighborSignal, void* setTileAndData, void* addToTickNextTick, void* getTile)
@@ -34,6 +41,52 @@ void NativeExports::SetLevelInteropSymbols(void* hasNeighborSignal, void* setTil
     s_levelSetTileAndData = reinterpret_cast<LevelSetTileAndData_fn>(setTileAndData);
     s_levelAddToTickNextTick = reinterpret_cast<LevelAddToTickNextTick_fn>(addToTickNextTick);
     s_levelGetTile = reinterpret_cast<LevelGetTile_fn>(getTile);
+}
+
+void NativeExports::SetLocalizationSymbols(void* appPtr, void* getLanguage, void* getLocale)
+{
+    s_minecraftApp = appPtr;
+    s_getMinecraftLanguage = reinterpret_cast<GetMinecraftLanguage_fn>(getLanguage);
+    s_getMinecraftLocale = reinterpret_cast<GetMinecraftLanguage_fn>(getLocale);
+}
+
+void NativeExports::SetModsPath(const std::string& modsPath)
+{
+    s_modsPath = modsPath;
+}
+
+static std::string ResolveDefaultModsPath()
+{
+    HMODULE hMod = nullptr;
+    std::string modsPath;
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)&ResolveDefaultModsPath, &hMod) && hMod)
+    {
+        char dllPath[MAX_PATH] = { 0 };
+        if (GetModuleFileNameA(hMod, dllPath, MAX_PATH))
+        {
+            std::string dllDir(dllPath);
+            size_t dllPos = dllDir.find_last_of("\\/");
+            if (dllPos != std::string::npos)
+            {
+                dllDir.resize(dllPos + 1);
+                modsPath = dllDir + "mods";
+                return modsPath;
+            }
+        }
+    }
+
+    char exePath[MAX_PATH] = { 0 };
+    if (GetModuleFileNameA(nullptr, exePath, MAX_PATH))
+    {
+        std::string exeDir(exePath);
+        size_t exePos = exeDir.find_last_of("\\/");
+        if (exePos != std::string::npos)
+        {
+            exeDir.resize(exePos + 1);
+            modsPath = exeDir + "mods";
+        }
+    }
+    return modsPath;
 }
 
 static std::wstring Utf8ToWide(const char* utf8)
@@ -510,6 +563,34 @@ void native_register_string(int descriptionId, const char* displayName)
     if (!displayName) return;
     std::wstring wName = Utf8ToWide(displayName);
     ModStrings::Register(descriptionId, wName.c_str());
+}
+
+int native_get_minecraft_language()
+{
+    if (!s_minecraftApp || !s_getMinecraftLanguage)
+    {
+        if (!s_loggedMissingLanguage)
+        {
+            s_loggedMissingLanguage = true;
+            LogUtil::Log("[WeaveLoader] native_get_minecraft_language: symbols unavailable");
+        }
+        return -1;
+    }
+    return (int)s_getMinecraftLanguage(s_minecraftApp, 0);
+}
+
+int native_get_minecraft_locale()
+{
+    if (!s_minecraftApp || !s_getMinecraftLocale)
+        return -1;
+    return (int)s_getMinecraftLocale(s_minecraftApp, 0);
+}
+
+const char* native_get_mods_path()
+{
+    if (s_modsPath.empty())
+        s_modsPath = ResolveDefaultModsPath();
+    return s_modsPath.c_str();
 }
 
 int native_register_entity(

@@ -145,6 +145,15 @@ internal static class NativeInterop
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern void native_register_string(int descriptionId, string displayName);
 
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int native_get_minecraft_language();
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int native_get_minecraft_locale();
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint native_get_mods_path();
+
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int native_register_entity(
         string namespacedId,

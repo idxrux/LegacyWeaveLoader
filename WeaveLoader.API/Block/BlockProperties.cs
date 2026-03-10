@@ -1,3 +1,5 @@
+using WeaveLoader.API;
+
 namespace WeaveLoader.API.Block;
 
 /// <summary>
@@ -62,7 +64,7 @@ public class BlockProperties
     internal float LightEmissionValue = 0.0f;
     internal int LightBlockValue = 255;
     internal CreativeTab CreativeTabValue = CreativeTab.None;
-    internal string? NameValue;
+    internal Text? NameValue;
     internal int RequiredHarvestLevelValue = -1;
     internal ToolType RequiredToolValue = ToolType.None;
     internal bool AcceptsRedstonePowerValue;
@@ -71,14 +73,19 @@ public class BlockProperties
     public BlockProperties Hardness(float hardness) { HardnessValue = hardness; return this; }
     public BlockProperties Resistance(float resistance) { ResistanceValue = resistance; return this; }
     public BlockProperties Sound(SoundType sound) { SoundValue = sound; return this; }
-    /// <summary>Icon name in the terrain atlas. Use namespaced ID for mod textures (e.g. "examplemod:ruby_ore" from assets/blocks/ruby_ore.png), or vanilla names like "stone", "gold_ore".</summary>
+    /// <summary>
+    /// Icon name in the terrain atlas. Use Java-style names like "examplemod:block/ruby_ore"
+    /// from assets/examplemod/textures/block/ruby_ore.png, or vanilla names like "stone", "gold_ore".
+    /// </summary>
     public BlockProperties Icon(string iconName) { IconValue = iconName; return this; }
     public BlockProperties LightLevel(float level) { LightEmissionValue = level; return this; }
     public BlockProperties LightBlocking(int level) { LightBlockValue = level; return this; }
     public BlockProperties Indestructible() { HardnessValue = -1.0f; ResistanceValue = 6000000f; return this; }
     public BlockProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
     /// <summary>Display name shown in-game (e.g. "Ruby Ore"). Used for localization.</summary>
-    public BlockProperties Name(string displayName) { NameValue = displayName; return this; }
+    public BlockProperties Name(string displayName) { NameValue = Text.Literal(displayName); return this; }
+    /// <summary>Localized display name using a language key (e.g. "block.examplemod.ruby_ore").</summary>
+    public BlockProperties Name(Text text) { NameValue = text; return this; }
     /// <summary>Minimum harvest level required to properly mine this block (e.g. 3 for obsidian). -1 means no requirement.</summary>
     public BlockProperties RequiredHarvestLevel(int level) { RequiredHarvestLevelValue = level; return this; }
     /// <summary>Tool type required to harvest this block (e.g. Pickaxe for stone-like blocks).</summary>

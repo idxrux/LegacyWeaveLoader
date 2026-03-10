@@ -662,7 +662,7 @@ namespace WorldIdRemap
                 1.0f,
                 1.0f,
                 1,
-                L"weaveloader.api:missing_block",
+                L"weaveloader.api:block/missing_block",
                 0.0f,
                 15,
                 kMissingBlockDescriptionId);
@@ -676,7 +676,7 @@ namespace WorldIdRemap
                 missingItemId,
                 64,
                 0,
-                L"weaveloader.api:missing_item",
+                L"weaveloader.api:item/missing_item",
                 kMissingItemDescriptionId);
             IdRegistry::Instance().SetMissingFallback(IdRegistry::Type::Item, missingItemId);
         }

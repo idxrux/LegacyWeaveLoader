@@ -4,6 +4,7 @@
 #include "MainMenuOverlay.h"
 #include "ModStrings.h"
 #include "ModAtlas.h"
+#include "NativeExports.h"
 #include "CustomPickaxeRegistry.h"
 #include "CustomToolMaterialRegistry.h"
 #include "CustomBlockRegistry.h"
@@ -17,7 +18,9 @@
 #include <cstring>
 #include <cwchar>
 #include <cwctype>
+#include <cctype>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <cstddef>
 #include <vector>
@@ -110,6 +113,10 @@ namespace GameHooks
     static InventoryRemoveResource_fn s_inventoryRemoveResource = nullptr;
     static void* s_inventoryVtable = nullptr;
     static ItemInstanceHurtAndBreak_fn s_itemInstanceHurtAndBreak = nullptr;
+    static std::string s_modsPath;
+    static std::unordered_map<std::string, std::string> s_modAssetRoots;
+    static bool s_modAssetsIndexed = false;
+    static std::mutex s_modAssetsMutex;
     // Verified from compiled Player::inventory accesses in this game build.
     static constexpr ptrdiff_t kPlayerInventoryOffset = 0x340;
     static constexpr ptrdiff_t kLevelIsClientSideOffset = 0x268;
@@ -332,6 +339,150 @@ namespace GameHooks
         size_t suffLen = wcslen(suffix);
         if (suffLen > pathLen) return false;
         return path.compare(pathLen - suffLen, suffLen, suffix) == 0;
+    }
+
+    static std::string ToLowerAscii(const std::string& value)
+    {
+        std::string out;
+        out.reserve(value.size());
+        for (char ch : value)
+            out.push_back((char)tolower((unsigned char)ch));
+        return out;
+    }
+
+    static std::string WStringToLowerAscii(const std::wstring& value)
+    {
+        std::string out;
+        out.reserve(value.size());
+        for (wchar_t ch : value)
+        {
+            if (ch > 0x7F)
+                return std::string();
+            out.push_back((char)tolower((unsigned char)ch));
+        }
+        return out;
+    }
+
+    static void BuildModAssetIndexLocked()
+    {
+        s_modAssetRoots.clear();
+        s_modAssetsIndexed = true;
+        if (s_modsPath.empty())
+            return;
+
+        WIN32_FIND_DATAA fd;
+        std::string search = s_modsPath + "\\*";
+        HANDLE h = FindFirstFileA(search.c_str(), &fd);
+        if (h == INVALID_HANDLE_VALUE)
+            return;
+
+        do
+        {
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+            if (fd.cFileName[0] == '.') continue;
+
+            std::string modFolder = fd.cFileName;
+            std::string assetsPath = s_modsPath + "\\" + modFolder + "\\assets";
+            DWORD attr = GetFileAttributesA(assetsPath.c_str());
+            if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY))
+                continue;
+
+            WIN32_FIND_DATAA nsfd;
+            std::string nsSearch = assetsPath + "\\*";
+            HANDLE hNs = FindFirstFileA(nsSearch.c_str(), &nsfd);
+            if (hNs == INVALID_HANDLE_VALUE)
+                continue;
+            do
+            {
+                if (!(nsfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+                if (nsfd.cFileName[0] == '.') continue;
+
+                std::string nsName = ToLowerAscii(nsfd.cFileName);
+                if (nsName.empty())
+                    continue;
+
+                if (s_modAssetRoots.find(nsName) == s_modAssetRoots.end())
+                {
+                    s_modAssetRoots.emplace(nsName, assetsPath);
+                }
+                else
+                {
+                    LogUtil::Log("[WeaveLoader] ModAssets: duplicate namespace '%s' (folder=%s) ignored",
+                                 nsName.c_str(), modFolder.c_str());
+                }
+            } while (FindNextFileA(hNs, &nsfd));
+            FindClose(hNs);
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+
+    static void EnsureModAssetIndex()
+    {
+        if (s_modAssetsIndexed)
+            return;
+        std::lock_guard<std::mutex> guard(s_modAssetsMutex);
+        if (!s_modAssetsIndexed)
+            BuildModAssetIndexLocked();
+    }
+
+    static bool FileExistsW(const std::wstring& path)
+    {
+        DWORD attr = GetFileAttributesW(path.c_str());
+        return (attr != INVALID_FILE_ATTRIBUTES) && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+    }
+
+    static bool TryResolveModAssetPath(const std::wstring& requestPath, std::wstring& outPath)
+    {
+        if (s_modsPath.empty())
+            return false;
+
+        std::wstring lower = NormalizeLowerPath(requestPath);
+        if (lower.find(L"://") != std::wstring::npos)
+            return false;
+
+        const std::wstring kAssets = L"/assets/";
+        size_t assetsPos = lower.find(kAssets);
+        if (assetsPos == std::wstring::npos)
+            return false;
+
+        size_t nsStart = assetsPos + kAssets.size();
+        if (nsStart >= lower.size())
+            return false;
+        size_t nsEnd = lower.find(L'/', nsStart);
+        if (nsEnd == std::wstring::npos || nsEnd <= nsStart)
+            return false;
+
+        std::wstring ns = lower.substr(nsStart, nsEnd - nsStart);
+        if (ns.empty())
+            return false;
+
+        size_t relStart = nsEnd + 1;
+        if (relStart >= lower.size())
+            return false;
+        std::wstring rel = lower.substr(relStart);
+
+        std::string nsKey = WStringToLowerAscii(ns);
+        if (nsKey.empty())
+            return false;
+
+        EnsureModAssetIndex();
+        auto it = s_modAssetRoots.find(nsKey);
+        if (it == s_modAssetRoots.end())
+            return false;
+
+        std::wstring rootW(it->second.begin(), it->second.end());
+        std::wstring relW = ns + L"/" + rel;
+        for (wchar_t& ch : relW)
+        {
+            if (ch == L'/')
+                ch = L'\\';
+        }
+        std::wstring fullPath = rootW + L"\\" + relW;
+        if (!FileExistsW(fullPath))
+            return false;
+
+        outPath = fullPath;
+        return true;
     }
 
     static int DetectAtlasTypeFromResource(void* resourcePtr)
@@ -2284,6 +2435,14 @@ namespace GameHooks
             }
         }
 
+        std::wstring modAssetPath;
+        if (TryResolveModAssetPath(*path, modAssetPath))
+        {
+            LogUtil::Log("[WeaveLoader] getResourceAsStream: redirecting %ls -> %ls",
+                         path->c_str(), modAssetPath.c_str());
+            return Original_GetResourceAsStream(&modAssetPath);
+        }
+
         return Original_GetResourceAsStream(fileName);
     }
 
@@ -2372,6 +2531,13 @@ namespace GameHooks
         }
         modsPath = base + "mods";
     atlas_done:
+        s_modsPath = modsPath;
+        {
+            std::lock_guard<std::mutex> guard(s_modAssetsMutex);
+            s_modAssetsIndexed = false;
+            s_modAssetRoots.clear();
+        }
+        NativeExports::SetModsPath(modsPath);
         ModAtlas::SetBasePaths(modsPath, gameResPath);
         ModAtlas::EnsureAtlasesBuilt();
 

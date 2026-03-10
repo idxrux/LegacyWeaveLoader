@@ -6,7 +6,8 @@
 
 /// <summary>
 /// Builds merged terrain.png and items.png atlases from mod assets.
-/// Scans mods/*/assets/blocks/*.png and items/*.png, stitches into copies of the
+/// Scans Java-style assets under mods/*/assets/<namespace>/textures/block|item/*.png,
+/// then stitches into copies of the
 /// vanilla atlases stored in mods/ModLoader/generated/. A CreateFileW hook redirects
 /// the game's file opens to the merged copies so vanilla files are never modified.
 /// </summary>

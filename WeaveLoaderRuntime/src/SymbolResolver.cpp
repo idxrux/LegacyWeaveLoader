@@ -125,6 +125,8 @@ static const char* SYM_BUFFEREDIMAGE_CTOR_FILE = "??0BufferedImage@@QEAA@AEBV?$b
 static const char* SYM_BUFFEREDIMAGE_CTOR_DLC = "??0BufferedImage@@QEAA@PEAVDLCPack@@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@_N@Z";
 static const char* SYM_TEXTUREMANAGER_CREATETEXTURE = "?createTexture@TextureManager@@QEAAPEAVTexture@@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@HHHHHHH_NPEAVBufferedImage@@@Z";
 static const char* SYM_TEXTURE_TRANSFERFROMIMAGE = "?transferFromImage@Texture@@QEAAXPEAVBufferedImage@@@Z";
+static const char* SYM_GET_MINECRAFT_LANGUAGE = "?GetMinecraftLanguage@CMinecraftApp@@QEAAEH@Z";
+static const char* SYM_GET_MINECRAFT_LOCALE = "?GetMinecraftLocale@CMinecraftApp@@QEAAEH@Z";
 static const char* SYM_ABSTRACT_TEXPACK_GETIMAGE = "?getImageResource@AbstractTexturePack@@UEAAPEAVBufferedImage@@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@_N10@Z";
 static const char* SYM_DLC_TEXPACK_GETIMAGE = "?getImageResource@DLCTexturePack@@UEAAPEAVBufferedImage@@AEBV?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@_N10@Z";
 static const char* SYM_MINECRAFT_SETLEVEL = "?setLevel@Minecraft@@QEAAXPEAVMultiPlayerLevel@@HV?$shared_ptr@VPlayer@@@std@@_N2@Z";
@@ -330,6 +332,15 @@ bool SymbolResolver::ResolveGameFunctions()
     pTextureAtlasLocationBlocks = Resolve(SYM_TEXATLAS_BLOCKS);
     pTextureAtlasLocationItems = Resolve(SYM_TEXATLAS_ITEMS);
     pTileTiles = Resolve(SYM_TILE_TILES);
+    pMinecraftApp = Resolve("?app@@3VCMinecraftApp@@A");
+    if (!pMinecraftApp)
+        pMinecraftApp = ResolveExactProcName(m_moduleBase, "app");
+    pGetMinecraftLanguage = Resolve(SYM_GET_MINECRAFT_LANGUAGE);
+    if (!pGetMinecraftLanguage)
+        pGetMinecraftLanguage = ResolveExactProcName(m_moduleBase, "CMinecraftApp::GetMinecraftLanguage");
+    pGetMinecraftLocale = Resolve(SYM_GET_MINECRAFT_LOCALE);
+    if (!pGetMinecraftLocale)
+        pGetMinecraftLocale = ResolveExactProcName(m_moduleBase, "CMinecraftApp::GetMinecraftLocale");
     pLevelHasNeighborSignal = Resolve(SYM_LEVEL_HASNEIGHBORSIGNAL);
     pLevelSetTileAndData = Resolve(SYM_LEVEL_SETTILEANDDATA);
     pLevelAddToTickNextTick = Resolve(SYM_LEVEL_ADDTOTICKNEXTTICK);
@@ -462,6 +473,9 @@ bool SymbolResolver::ResolveGameFunctions()
     logSym("TextureAtlas::LOCATION_BLOCKS", pTextureAtlasLocationBlocks);
     logSym("TextureAtlas::LOCATION_ITEMS", pTextureAtlasLocationItems);
     logSym("Tile::tiles", pTileTiles);
+    logSym("app (CMinecraftApp)", pMinecraftApp);
+    logSym("CMinecraftApp::GetMinecraftLanguage", pGetMinecraftLanguage);
+    logSym("CMinecraftApp::GetMinecraftLocale", pGetMinecraftLocale);
     logSym("Level::hasNeighborSignal", pLevelHasNeighborSignal);
     logSym("Level::setTileAndData", pLevelSetTileAndData);
     logSym("Level::addToTickNextTick", pLevelAddToTickNextTick);

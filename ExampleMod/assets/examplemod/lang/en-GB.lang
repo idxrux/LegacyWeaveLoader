@@ -1,7 +1,4 @@
 # ExampleMod language file (en-GB)
-# Display names for blocks and items.
-# In the current API, use BlockProperties.Name() and ItemProperties.Name() instead.
-# This file documents the expected format for future multi-locale support.
 
 block.examplemod.ruby_ore=Ruby Ore
 block.examplemod.ruby_stone=Ruby Stone

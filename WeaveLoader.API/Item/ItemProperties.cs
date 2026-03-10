@@ -1,3 +1,5 @@
+using WeaveLoader.API;
+
 namespace WeaveLoader.API.Item;
 
 /// <summary>
@@ -10,10 +12,13 @@ public class ItemProperties
     internal float AttackDamageValue = 0.0f;
     internal string IconValue = "";
     internal CreativeTab CreativeTabValue = CreativeTab.None;
-    internal string? NameValue;
+    internal Text? NameValue;
 
     public ItemProperties MaxStackSize(int size) { MaxStackSizeValue = size; return this; }
-    /// <summary>Icon name in the items atlas. Use namespaced ID for mod textures (e.g. "examplemod:ruby" from assets/items/ruby.png), or vanilla names like "diamond", "ingotIron".</summary>
+    /// <summary>
+    /// Icon name in the items atlas. Use Java-style names like "examplemod:item/ruby"
+    /// from assets/examplemod/textures/item/ruby.png, or vanilla names like "diamond", "ingotIron".
+    /// </summary>
     public ItemProperties Icon(string iconName) { IconValue = iconName; return this; }
 
     /// <summary>
@@ -25,5 +30,7 @@ public class ItemProperties
     public ItemProperties AttackDamage(float damage) { AttackDamageValue = damage; return this; }
     public ItemProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
     /// <summary>Display name shown in-game (e.g. "Ruby"). Used for localization.</summary>
-    public ItemProperties Name(string displayName) { NameValue = displayName; return this; }
+    public ItemProperties Name(string displayName) { NameValue = Text.Literal(displayName); return this; }
+    /// <summary>Localized display name using a language key (e.g. "item.examplemod.ruby").</summary>
+    public ItemProperties Name(Text text) { NameValue = text; return this; }
 }

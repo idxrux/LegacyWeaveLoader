@@ -15,10 +15,10 @@
 
   <!-- Mod textures: use Target so they only copy when API builds to mods/, not when copied as dependency -->
   <Target Name="CopyModAssets" AfterTargets="Build">
-    <MakeDir Directories="$(OutputPath)assets\blocks" />
-    <MakeDir Directories="$(OutputPath)assets\items" />
-    <Copy SourceFiles="mod_assets\blocks\missing_block.png" DestinationFolder="$(OutputPath)assets\blocks\" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="mod_assets\items\missing_item.png" DestinationFolder="$(OutputPath)assets\items\" SkipUnchangedFiles="true" />
+    <MakeDir Directories="$(OutputPath)assets\weaveloader.api\textures\block" />
+    <MakeDir Directories="$(OutputPath)assets\weaveloader.api\textures\item" />
+    <Copy SourceFiles="mod_assets\weaveloader.api\textures\block\missing_block.png" DestinationFolder="$(OutputPath)assets\weaveloader.api\textures\block\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="mod_assets\weaveloader.api\textures\item\missing_item.png" DestinationFolder="$(OutputPath)assets\weaveloader.api\textures\item\" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

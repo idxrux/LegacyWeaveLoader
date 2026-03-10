@@ -116,7 +116,7 @@ public static class ItemRegistry
                 (int)nativeTier,
                 maxDamage,
                 properties.IconValue,
-                properties.NameValue ?? "");
+                properties.NameValue?.Resolve() ?? "");
 
             if (numericId >= 0)
                 ConfigureToolMaterial(id, numericId, ToolKind.Pickaxe, material, properties);
@@ -129,7 +129,7 @@ public static class ItemRegistry
                 (int)(material?.BaseTierValue ?? shovelItem.Tier),
                 properties.MaxDamageValue,
                 properties.IconValue,
-                properties.NameValue ?? "");
+                properties.NameValue?.Resolve() ?? "");
 
             if (numericId >= 0)
                 ConfigureToolMaterial(id, numericId, ToolKind.Shovel, material, properties);
@@ -142,7 +142,7 @@ public static class ItemRegistry
                 (int)(material?.BaseTierValue ?? hoeItem.Tier),
                 properties.MaxDamageValue,
                 properties.IconValue,
-                properties.NameValue ?? "");
+                properties.NameValue?.Resolve() ?? "");
 
             if (numericId >= 0)
                 ConfigureToolMaterial(id, numericId, ToolKind.Hoe, material, properties);
@@ -155,7 +155,7 @@ public static class ItemRegistry
                 (int)(material?.BaseTierValue ?? axeItem.Tier),
                 properties.MaxDamageValue,
                 properties.IconValue,
-                properties.NameValue ?? "");
+                properties.NameValue?.Resolve() ?? "");
 
             if (numericId >= 0)
                 ConfigureToolMaterial(id, numericId, ToolKind.Axe, material, properties);
@@ -168,7 +168,7 @@ public static class ItemRegistry
                 (int)(material?.BaseTierValue ?? swordItem.Tier),
                 properties.MaxDamageValue,
                 properties.IconValue,
-                properties.NameValue ?? "");
+                properties.NameValue?.Resolve() ?? "");
 
             if (numericId >= 0)
                 ConfigureToolMaterial(id, numericId, ToolKind.Sword, material, properties);
@@ -180,7 +180,7 @@ public static class ItemRegistry
                 properties.MaxStackSizeValue,
                 properties.MaxDamageValue,
                 properties.IconValue,
-                properties.NameValue ?? "");
+                properties.NameValue?.Resolve() ?? "");
         }
 
         if (numericId < 0)
