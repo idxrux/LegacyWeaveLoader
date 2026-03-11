@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <bcrypt.h>
+#include <crtdbg.h>
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
@@ -16,6 +17,11 @@
 #include "MainMenuOverlay.h"
 
 static HMODULE g_hModule = nullptr;
+
+static int __cdecl SuppressCrtAssert(int, char*, int*)
+{
+    return 1;
+}
 
 static std::string GetDllDirectory(HMODULE hModule)
 {
@@ -296,6 +302,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             std::string baseDir = GetDllDirectory(hModule);
             LogUtil::SetBaseDir(baseDir.c_str());
             CrashHandler::Install(hModule);
+            _CrtSetReportMode(_CRT_ASSERT, 0);
+            _CrtSetReportHook(SuppressCrtAssert);
         }
 
         CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr);
