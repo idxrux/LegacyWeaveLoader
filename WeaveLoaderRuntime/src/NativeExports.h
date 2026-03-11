@@ -193,6 +193,14 @@ extern "C"
         int count,
         int auxValue,
         int groupIndex);
+    __declspec(dllexport) void native_add_to_creative_ex(
+        int numericId,
+        int count,
+        int auxValue,
+        int groupIndex,
+        int insertMode,
+        int anchorId,
+        int anchorAux);
 
     __declspec(dllexport) void* native_find_symbol(const char* fullName);
     __declspec(dllexport) int native_has_symbol(const char* fullName);

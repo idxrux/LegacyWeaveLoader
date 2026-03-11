@@ -12,6 +12,7 @@ public class ItemProperties
     internal float AttackDamageValue = 0.0f;
     internal string IconValue = "";
     internal CreativeTab CreativeTabValue = CreativeTab.None;
+    internal CreativePlacement? CreativePlacementValue;
     internal Text? NameValue;
 
     public ItemProperties MaxStackSize(int size) { MaxStackSizeValue = size; return this; }
@@ -29,6 +30,8 @@ public class ItemProperties
     /// <summary>Override the native attack damage value for tool items.</summary>
     public ItemProperties AttackDamage(float damage) { AttackDamageValue = damage; return this; }
     public ItemProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
+    public ItemProperties CreativePlacement(CreativePlacement placement) { CreativePlacementValue = placement; return this; }
+    public ItemProperties Prepend() { CreativePlacementValue = global::WeaveLoader.API.CreativePlacement.Prepend(); return this; }
     /// <summary>Display name shown in-game (e.g. "Ruby"). Used for localization.</summary>
     public ItemProperties Name(string displayName) { NameValue = Text.Literal(displayName); return this; }
     /// <summary>Localized display name using a language key (e.g. "item.examplemod.ruby").</summary>

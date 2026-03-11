@@ -225,6 +225,9 @@ internal static class NativeInterop
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void native_add_to_creative(int numericId, int count, int auxValue, int groupIndex);
 
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void native_add_to_creative_ex(int numericId, int count, int auxValue, int groupIndex, int insertMode, int anchorId, int anchorAux);
+
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern nint native_find_symbol(string fullName);
 

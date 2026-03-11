@@ -65,13 +65,12 @@ public static class BlockRegistry
             properties.AcceptsRedstonePowerValue ? 1 : 0);
 
         if (numericId < 0)
-            throw new InvalidOperationException($"Failed to register block '{id}'. No free IDs or invalid parameters.");
-
-        if (properties.CreativeTabValue != CreativeTab.None)
         {
-            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
-            Logger.Debug($"Block '{id}' added to creative tab {properties.CreativeTabValue}");
+            Logger.Error($"Failed to register block '{id}'. No free IDs or invalid parameters.");
+            throw new InvalidOperationException($"Failed to register block '{id}'. No free IDs or invalid parameters.");
         }
+
+        AddToCreative(id, numericId, properties);
 
         Logger.Debug($"Registered block '{id}' -> numeric ID {numericId}");
         lock (s_lock)
@@ -104,12 +103,12 @@ public static class BlockRegistry
             properties.AcceptsRedstonePowerValue ? 1 : 0);
 
         if (numericId < 0)
-            throw new InvalidOperationException($"Failed to register managed block '{id}'.");
-
-        if (properties.CreativeTabValue != CreativeTab.None)
         {
-            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            Logger.Error($"Failed to register managed block '{id}'.");
+            throw new InvalidOperationException($"Failed to register managed block '{id}'.");
         }
+
+        AddToCreative(id, numericId, properties);
 
         ManagedBlockDispatcher.RegisterBlock(id, numericId, managedBlock);
 
@@ -150,12 +149,12 @@ public static class BlockRegistry
             properties.AcceptsRedstonePowerValue ? 1 : 0);
 
         if (numericId < 0)
-            throw new InvalidOperationException($"Failed to register falling block '{id}'.");
-
-        if (properties.CreativeTabValue != CreativeTab.None)
         {
-            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            Logger.Error($"Failed to register falling block '{id}'.");
+            throw new InvalidOperationException($"Failed to register falling block '{id}'.");
         }
+
+        AddToCreative(id, numericId, properties);
 
         if (managedBlock != null)
         {
@@ -198,14 +197,17 @@ public static class BlockRegistry
             out int doubleNumericId);
 
         if (numericId < 0)
-            throw new InvalidOperationException($"Failed to register slab block '{id}'.");
-        if (doubleNumericId < 0)
-            throw new InvalidOperationException($"Failed to resolve generated slab pair '{doubleId}'.");
-
-        if (properties.CreativeTabValue != CreativeTab.None)
         {
-            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            Logger.Error($"Failed to register slab block '{id}'.");
+            throw new InvalidOperationException($"Failed to register slab block '{id}'.");
         }
+        if (doubleNumericId < 0)
+        {
+            Logger.Error($"Failed to resolve generated slab pair '{doubleId}'.");
+            throw new InvalidOperationException($"Failed to resolve generated slab pair '{doubleId}'.");
+        }
+
+        AddToCreative(id, numericId, properties);
 
         lock (s_lock)
         {
@@ -221,5 +223,60 @@ public static class BlockRegistry
         {
             return s_idByNumeric.TryGetValue(numericId, out id);
         }
+    }
+
+    private static void AddToCreative(Identifier id, int numericId, BlockProperties properties)
+    {
+        if (properties.CreativeTabValue == CreativeTab.None)
+        {
+            Logger.Debug($"Block '{id}' not added to creative (CreativeTab.None)");
+            return;
+        }
+
+        bool added = false;
+        if (properties.CreativePlacementValue.HasValue)
+        {
+            CreativePlacement placement = properties.CreativePlacementValue.Value;
+            if (placement.Insert == CreativeInsert.Prepend)
+            {
+                try
+                {
+                    NativeInterop.native_add_to_creative_ex(
+                        numericId, 1, 0, (int)properties.CreativeTabValue,
+                        (int)placement.Insert, -1, -1);
+                }
+                catch (DllNotFoundException e)
+                {
+                    Logger.Error($"Creative add failed for block '{id}': {e.Message}. Check that WeaveLoaderRuntime is present.");
+                    throw;
+                }
+                catch (EntryPointNotFoundException e)
+                {
+                    Logger.Error($"Creative add failed for block '{id}': {e.Message}. API/runtime mismatch.");
+                    throw;
+                }
+                added = true;
+            }
+        }
+
+        if (!added)
+        {
+            try
+            {
+                NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            }
+            catch (DllNotFoundException e)
+            {
+                Logger.Error($"Creative add failed for block '{id}': {e.Message}. Check that WeaveLoaderRuntime is present.");
+                throw;
+            }
+            catch (EntryPointNotFoundException e)
+            {
+                Logger.Error($"Creative add failed for block '{id}': {e.Message}. API/runtime mismatch.");
+                throw;
+            }
+        }
+
+        Logger.Debug($"Block '{id}' added to creative tab {properties.CreativeTabValue}");
     }
 }

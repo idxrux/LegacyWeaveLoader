@@ -64,6 +64,7 @@ public class BlockProperties
     internal float LightEmissionValue = 0.0f;
     internal int LightBlockValue = 255;
     internal CreativeTab CreativeTabValue = CreativeTab.None;
+    internal CreativePlacement? CreativePlacementValue;
     internal Text? NameValue;
     internal int RequiredHarvestLevelValue = -1;
     internal ToolType RequiredToolValue = ToolType.None;
@@ -82,6 +83,8 @@ public class BlockProperties
     public BlockProperties LightBlocking(int level) { LightBlockValue = level; return this; }
     public BlockProperties Indestructible() { HardnessValue = -1.0f; ResistanceValue = 6000000f; return this; }
     public BlockProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
+    public BlockProperties CreativePlacement(CreativePlacement placement) { CreativePlacementValue = placement; return this; }
+    public BlockProperties Prepend() { CreativePlacementValue = global::WeaveLoader.API.CreativePlacement.Prepend(); return this; }
     /// <summary>Display name shown in-game (e.g. "Ruby Ore"). Used for localization.</summary>
     public BlockProperties Name(string displayName) { NameValue = Text.Literal(displayName); return this; }
     /// <summary>Localized display name using a language key (e.g. "block.examplemod.ruby_ore").</summary>

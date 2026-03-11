@@ -184,12 +184,62 @@ public static class ItemRegistry
         }
 
         if (numericId < 0)
+        {
+            Logger.Error($"Failed to register item '{id}'. No free IDs or invalid parameters.");
             throw new InvalidOperationException($"Failed to register item '{id}'. No free IDs or invalid parameters.");
+        }
 
         if (properties.CreativeTabValue != CreativeTab.None)
         {
-            NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+            bool added = false;
+            if (properties.CreativePlacementValue.HasValue)
+            {
+                CreativePlacement placement = properties.CreativePlacementValue.Value;
+                if (placement.Insert == CreativeInsert.Prepend)
+                {
+                    try
+                    {
+                        NativeInterop.native_add_to_creative_ex(
+                            numericId, 1, 0, (int)properties.CreativeTabValue,
+                            (int)placement.Insert, -1, -1);
+                    }
+                    catch (DllNotFoundException e)
+                    {
+                        Logger.Error($"Creative add failed for item '{id}': {e.Message}. Check that WeaveLoaderRuntime is present.");
+                        throw;
+                    }
+                    catch (EntryPointNotFoundException e)
+                    {
+                        Logger.Error($"Creative add failed for item '{id}': {e.Message}. API/runtime mismatch.");
+                        throw;
+                    }
+                    added = true;
+                }
+            }
+
+            if (!added)
+            {
+                try
+                {
+                    NativeInterop.native_add_to_creative(numericId, 1, 0, (int)properties.CreativeTabValue);
+                }
+                catch (DllNotFoundException e)
+                {
+                    Logger.Error($"Creative add failed for item '{id}': {e.Message}. Check that WeaveLoaderRuntime is present.");
+                    throw;
+                }
+                catch (EntryPointNotFoundException e)
+                {
+                    Logger.Error($"Creative add failed for item '{id}': {e.Message}. API/runtime mismatch.");
+                    throw;
+                }
+            }
+
             Logger.Debug($"Item '{id}' added to creative tab {properties.CreativeTabValue}");
+        }
+        else
+        {
+            Logger.Debug($"Item '{id}' not added to creative (CreativeTab.None)");
         }
 
         if (managedItem != null)

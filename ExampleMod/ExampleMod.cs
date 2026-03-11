@@ -246,7 +246,8 @@ public class ExampleMod : IMod
                 .Icon("examplemod:block/ruby_sand")
                 .Name(Text.Translatable("block.examplemod.ruby_sand"))
                 .RequiredTool(ToolType.Shovel)
-                .InCreativeTab(CreativeTab.BuildingBlocks));
+                .InCreativeTab(CreativeTab.BuildingBlocks)
+                .Prepend());
 
         RubyStoneSlab = (RegisteredSlabBlock)Registry.Block.Register("examplemod:ruby_stone_slab",
             new SlabBlock(),
@@ -371,7 +372,8 @@ public class ExampleMod : IMod
                 .AttackDamage(1.0f)
                 .Icon("examplemod:item/ruby_hoe")
                 .Name(Text.Translatable("item.examplemod.ruby_hoe"))
-                .InCreativeTab(CreativeTab.ToolsAndWeapons));
+                .InCreativeTab(CreativeTab.ToolsAndWeapons)
+                .Prepend());
 
         RubyWandItem = Registry.Item.Register("examplemod:ruby_wand", new RubyWand(),
             new ItemProperties()

@@ -2637,6 +2637,7 @@ namespace GameHooks
     {
         LogUtil::Log("[WeaveLoader] Hook: CreativeStaticCtor -- building vanilla creative lists");
         Original_CreativeStaticCtor();
+        CreativeInventory::SetCreativeReady();
 
         // Inject AFTER vanilla lists so modded entries are appended to the end
         // of each creative category.

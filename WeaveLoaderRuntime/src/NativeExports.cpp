@@ -772,6 +772,11 @@ void native_add_to_creative(int numericId, int count, int auxValue, int groupInd
     CreativeInventory::AddPending(numericId, count, auxValue, groupIndex);
 }
 
+void native_add_to_creative_ex(int numericId, int count, int auxValue, int groupIndex, int insertMode, int anchorId, int anchorAux)
+{
+    CreativeInventory::AddPendingEx(numericId, count, auxValue, groupIndex, insertMode, anchorId, anchorAux);
+}
+
 void* native_find_symbol(const char* fullName)
 {
     return SymbolRegistry::Instance().FindAddress(fullName);

@@ -9,11 +9,22 @@ struct PendingCreativeItem
     int count;
     int auxValue;
     int groupIndex;
+    int insertMode;
 };
 
 namespace CreativeInventory
 {
+    enum InsertMode
+    {
+        InsertAppend = 0,
+        InsertPrepend = 1,
+        InsertBefore = 2,
+        InsertAfter = 3
+    };
+
     void AddPending(int itemId, int count, int auxValue, int groupIndex);
+    void AddPendingEx(int itemId, int count, int auxValue, int groupIndex, int insertMode, int anchorId, int anchorAux);
+    void SetCreativeReady();
     bool ResolveSymbols(SymbolResolver& resolver);
     void InjectItems();
     void UpdateTabPageCounts();
