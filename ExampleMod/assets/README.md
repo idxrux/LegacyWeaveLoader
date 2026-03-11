@@ -39,3 +39,14 @@ Block and item models are supported using Java-style JSON assets:
 - **Entities (future):** `assets/examplemod/models/entity/{name}.json`
 
 The `examplemod` namespace should match your mod ID (lowercase).
+
+To drive an icon from a model JSON, use:
+
+```csharp
+.Model("examplemod:block/ruby_ore")
+.Model("examplemod:item/ruby")
+```
+
+WeaveLoader reads the model JSON and uses its texture for the icon.
+
+For block items, WeaveLoader uses the block model by default. Item models are optional.

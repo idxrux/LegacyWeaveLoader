@@ -12,12 +12,14 @@
 #include "CustomSlabRegistry.h"
 #include "LogUtil.h"
 #include "WorldIdRemap.h"
+#include "ModelRegistry.h"
 #include <Windows.h>
 #include <string>
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
 #include <cwctype>
+#include <vector>
 #include <cctype>
 #include <memory>
 #include <mutex>
@@ -25,6 +27,8 @@
 #include <thread>
 #include <unordered_map>
 #include <cstddef>
+#include <fstream>
+#include <cmath>
 #include <vector>
 
 namespace GameHooks
@@ -102,6 +106,290 @@ namespace GameHooks
     TextureTransferFromImage_fn Original_TextureTransferFromImage = nullptr;
     TexturePackGetImageResource_fn Original_AbstractTexturePackGetImageResource = nullptr;
     TexturePackGetImageResource_fn Original_DLCTexturePackGetImageResource = nullptr;
+    TileRendererTesselateInWorld_fn Original_TileRendererTesselateInWorld = nullptr;
+    TileRendererTesselateBlockInWorld_fn TileRenderer_TesselateBlockInWorld = nullptr;
+    TileRendererSetShape_fn TileRenderer_SetShape = nullptr;
+    TileRendererSetShapeTile_fn TileRenderer_SetShapeTile = nullptr;
+    TileSetShape_fn Tile_SetShape = nullptr;
+    AABBNewTemp_fn AABB_NewTemp = nullptr;
+    AABBClip_fn AABB_Clip = nullptr;
+    TileAddAABBs_fn Original_TileAddAABBs = nullptr;
+    TileUpdateDefaultShape_fn Original_TileUpdateDefaultShape = nullptr;
+    TileIsSolidRender_fn Original_TileIsSolidRender = nullptr;
+    TileIsCubeShaped_fn Original_TileIsCubeShaped = nullptr;
+    TileClip_fn Original_TileClip = nullptr;
+    Vec3NewTemp_fn Vec3_NewTemp = nullptr;
+    HitResultCtor_fn HitResult_Ctor = nullptr;
+    LevelClip_fn Original_LevelClip = nullptr;
+    LivingEntityPick_fn Original_LivingEntityPick = nullptr;
+
+    namespace
+    {
+        struct AABBRaw
+        {
+            double x0, y0, z0;
+            double x1, y1, z1;
+        };
+
+        struct Vec3Raw
+        {
+            double x, y, z;
+        };
+
+        struct HitResultRaw
+        {
+            int type;
+            int x;
+            int y;
+            int z;
+            int f;
+            void* pos;
+        };
+
+
+        static bool Intersects(const AABBRaw* box, double x0, double y0, double z0, double x1, double y1, double z1)
+        {
+            if (!box)
+                return false;
+            return !(box->x1 <= x0 || box->x0 >= x1 ||
+                     box->y1 <= y0 || box->y0 >= y1 ||
+                     box->z1 <= z0 || box->z0 >= z1);
+        }
+
+        static bool IntersectSegmentAABB(const Vec3Raw& a, const Vec3Raw& b,
+                                         double x0, double y0, double z0,
+                                         double x1, double y1, double z1,
+                                         double& outT, int& outFace)
+        {
+            double tmin = 0.0;
+            double tmax = 1.0;
+            int faceNear = -1;
+            int faceFar = -1;
+
+            auto axis = [&](double a0, double b0, double minV, double maxV, int minFace, int maxFace) -> bool
+            {
+                const double d = b0 - a0;
+                if (std::fabs(d) < 1e-12)
+                {
+                    return !(a0 < minV || a0 > maxV);
+                }
+
+                double tNear;
+                double tFar;
+                int nearFace;
+                int farFace;
+
+                if (d > 0.0)
+                {
+                    tNear = (minV - a0) / d;
+                    tFar = (maxV - a0) / d;
+                    nearFace = minFace;
+                    farFace = maxFace;
+                }
+                else
+                {
+                    tNear = (maxV - a0) / d;
+                    tFar = (minV - a0) / d;
+                    nearFace = maxFace;
+                    farFace = minFace;
+                }
+
+                if (tNear > tmin)
+                {
+                    tmin = tNear;
+                    faceNear = nearFace;
+                }
+                if (tFar < tmax)
+                {
+                    tmax = tFar;
+                    faceFar = farFace;
+                }
+                return tmin <= tmax;
+            };
+
+            if (!axis(a.x, b.x, x0, x1, 4, 5)) return false; // west/east
+            if (!axis(a.y, b.y, y0, y1, 0, 1)) return false; // down/up
+            if (!axis(a.z, b.z, z0, z1, 2, 3)) return false; // north/south
+
+            if (tmax < 0.0 || tmin > 1.0)
+                return false;
+
+            if (tmin >= 0.0)
+            {
+                outT = tmin;
+                outFace = faceNear;
+            }
+            else
+            {
+                outT = tmax;
+                outFace = faceFar;
+            }
+            return outFace >= 0;
+        }
+
+        static bool IsFullCubeModel(const std::vector<ModelBox>& boxes)
+        {
+            if (boxes.size() != 1)
+                return false;
+            const auto& b = boxes[0];
+            const float eps = 0.0001f;
+            return (b.x0 <= 0.0f + eps && b.y0 <= 0.0f + eps && b.z0 <= 0.0f + eps &&
+                    b.x1 >= 1.0f - eps && b.y1 >= 1.0f - eps && b.z1 >= 1.0f - eps);
+        }
+
+
+        static std::atomic<bool> s_tileIdOffsetTried{false};
+        static int s_tileIdOffset = -1;
+
+        static bool ReadFileToString(const char* path, std::string& out)
+        {
+            out.clear();
+            std::ifstream file(path, std::ios::binary);
+            if (!file)
+                return false;
+            out.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+            return !out.empty();
+        }
+
+        static bool ExtractOffsetForField(const std::string& json, const char* className, const char* fieldName, int& outOffset)
+        {
+            if (!className || !fieldName)
+                return false;
+
+            const std::string classKey = std::string("\"") + className + "\"";
+            size_t classPos = json.find(classKey);
+            if (classPos == std::string::npos)
+                return false;
+
+            size_t objStart = json.find('{', classPos);
+            if (objStart == std::string::npos)
+                return false;
+            size_t objEnd = json.find('}', objStart);
+            if (objEnd == std::string::npos)
+                return false;
+
+            const std::string fieldKey = std::string("\"") + fieldName + "\"";
+            size_t fieldPos = json.find(fieldKey, objStart);
+            if (fieldPos == std::string::npos || fieldPos > objEnd)
+                return false;
+
+            size_t colon = json.find(':', fieldPos + fieldKey.size());
+            if (colon == std::string::npos)
+                return false;
+
+            size_t numStart = json.find_first_of("0123456789", colon + 1);
+            if (numStart == std::string::npos)
+                return false;
+
+            size_t numEnd = json.find_first_not_of("0123456789", numStart);
+            std::string num = json.substr(numStart, numEnd - numStart);
+            try
+            {
+                outOffset = std::stoi(num);
+                return true;
+            }
+            catch (...)
+            {
+                return false;
+            }
+        }
+
+        static bool TryResolveTileIdOffset()
+        {
+            bool expected = false;
+            if (!s_tileIdOffsetTried.compare_exchange_strong(expected, true))
+                return s_tileIdOffset >= 0;
+
+            const char* baseDir = LogUtil::GetBaseDir();
+            if (!baseDir || baseDir[0] == '\0')
+            {
+                LogUtil::Log("[WeaveLoader] ModelRegistry: base directory not set; cannot load offsets.json");
+                return false;
+            }
+
+            std::string json;
+            std::string path = std::string(baseDir) + "metadata\\offsets.json";
+            if (!ReadFileToString(path.c_str(), json))
+            {
+                path = std::string(baseDir) + "offsets.json";
+                if (!ReadFileToString(path.c_str(), json))
+                {
+                    LogUtil::Log("[WeaveLoader] ModelRegistry: offsets.json not found; custom block models disabled");
+                    return false;
+                }
+            }
+
+            int offset = -1;
+            if (!ExtractOffsetForField(json, "Tile", "id", offset))
+            {
+                LogUtil::Log("[WeaveLoader] ModelRegistry: failed to read Tile.id offset; custom block models disabled");
+                return false;
+            }
+
+            s_tileIdOffset = offset;
+            LogUtil::Log("[WeaveLoader] ModelRegistry: Tile.id offset = 0x%X", s_tileIdOffset);
+            return true;
+        }
+
+        int GetTileId(void* tilePtr)
+        {
+            if (!tilePtr)
+                return -1;
+            if (s_tileIdOffset < 0 && !TryResolveTileIdOffset())
+                return -1;
+            return *reinterpret_cast<int*>(reinterpret_cast<char*>(tilePtr) + s_tileIdOffset);
+        }
+
+        bool RenderModelInWorld(void* renderer, void* tilePtr, int x, int y, int z, const std::vector<ModelBox>& boxes)
+        {
+            if (!renderer || !tilePtr || boxes.empty())
+                return false;
+            if (!TileRenderer_SetShape || !TileRenderer_TesselateBlockInWorld)
+                return false;
+
+            bool rendered = false;
+            float minX = 0.0f, minY = 0.0f, minZ = 0.0f;
+            float maxX = 0.0f, maxY = 0.0f, maxZ = 0.0f;
+            bool haveBounds = false;
+            for (const auto& box : boxes)
+            {
+                const float bx0 = box.x0 < box.x1 ? box.x0 : box.x1;
+                const float by0 = box.y0 < box.y1 ? box.y0 : box.y1;
+                const float bz0 = box.z0 < box.z1 ? box.z0 : box.z1;
+                const float bx1 = box.x0 < box.x1 ? box.x1 : box.x0;
+                const float by1 = box.y0 < box.y1 ? box.y1 : box.y0;
+                const float bz1 = box.z0 < box.z1 ? box.z1 : box.z0;
+
+                if (!haveBounds)
+                {
+                    minX = bx0; minY = by0; minZ = bz0;
+                    maxX = bx1; maxY = by1; maxZ = bz1;
+                    haveBounds = true;
+                }
+                else
+                {
+                    if (bx0 < minX) minX = bx0;
+                    if (by0 < minY) minY = by0;
+                    if (bz0 < minZ) minZ = bz0;
+                    if (bx1 > maxX) maxX = bx1;
+                    if (by1 > maxY) maxY = by1;
+                    if (bz1 > maxZ) maxZ = bz1;
+                }
+
+                if (Tile_SetShape)
+                    Tile_SetShape(tilePtr, bx0, by0, bz0, bx1, by1, bz1);
+                TileRenderer_SetShape(renderer, bx0, by0, bz0, bx1, by1, bz1);
+                rendered |= TileRenderer_TesselateBlockInWorld(renderer, tilePtr, x, y, z);
+            }
+
+            if (Tile_SetShape && haveBounds)
+                Tile_SetShape(tilePtr, minX, minY, minZ, maxX, maxY, maxZ);
+            if (TileRenderer_SetShapeTile)
+                TileRenderer_SetShapeTile(renderer, tilePtr);
+
+            return rendered;
+        }
+    }
     static int s_itemMineBlockHookCalls = 0;
     static void* s_currentLevel = nullptr;
     static thread_local void* s_activeUseLevel = nullptr;
@@ -110,6 +398,7 @@ namespace GameHooks
     static EntityMoveTo_fn s_entityMoveTo = nullptr;
     static EntitySetPos_fn s_entitySetPos = nullptr;
     static EntityGetLookAngle_fn s_entityGetLookAngle = nullptr;
+    static LivingEntityGetPos_fn s_livingEntityGetPos = nullptr;
     static LivingEntityGetViewVector_fn s_livingEntityGetViewVector = nullptr;
     static EntityLerpMotion_fn s_entityLerpMotion = nullptr;
     static InventoryRemoveResource_fn s_inventoryRemoveResource = nullptr;
@@ -746,6 +1035,7 @@ namespace GameHooks
                              void* itemInstanceHurtAndBreak,
                              void* containerBroadcastChanges,
                              void* entityGetLookAngle,
+                             void* livingEntityGetPos,
                              void* livingEntityGetViewVector,
                              void* entityLerpMotion,
                              void* entitySetPos)
@@ -754,6 +1044,7 @@ namespace GameHooks
         s_inventoryVtable = inventoryVtable;
         s_itemInstanceHurtAndBreak = reinterpret_cast<ItemInstanceHurtAndBreak_fn>(itemInstanceHurtAndBreak);
         s_entityGetLookAngle = reinterpret_cast<EntityGetLookAngle_fn>(entityGetLookAngle);
+        s_livingEntityGetPos = reinterpret_cast<LivingEntityGetPos_fn>(livingEntityGetPos);
         s_livingEntityGetViewVector = reinterpret_cast<LivingEntityGetViewVector_fn>(livingEntityGetViewVector);
         s_entityLerpMotion = reinterpret_cast<EntityLerpMotion_fn>(entityLerpMotion);
         s_entitySetPos = reinterpret_cast<EntitySetPos_fn>(entitySetPos);
@@ -2725,5 +3016,352 @@ namespace GameHooks
         }
 
         Original_OutputDebugStringA(lpOutputString);
+    }
+
+    bool __fastcall Hooked_TileRendererTesselateInWorld(void* thisPtr, void* tilePtr, int x, int y, int z, int forceData, void* tileEntitySharedPtr)
+    {
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(tilePtr);
+        if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty())
+        {
+            if (RenderModelInWorld(thisPtr, tilePtr, x, y, z, *boxes))
+                return true;
+        }
+
+        return Original_TileRendererTesselateInWorld
+            ? Original_TileRendererTesselateInWorld(thisPtr, tilePtr, x, y, z, forceData, tileEntitySharedPtr)
+            : false;
+    }
+
+    void __fastcall Hooked_TileAddAABBs(void* thisPtr, void* levelPtr, int x, int y, int z, void* boxPtr, void* boxesPtr, void* sourcePtr)
+    {
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(thisPtr);
+        if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty() && AABB_NewTemp && boxesPtr && boxPtr)
+        {
+            auto list = reinterpret_cast<std::vector<void*>*>(boxesPtr);
+            const AABBRaw* clipBox = reinterpret_cast<const AABBRaw*>(boxPtr);
+
+            for (const auto& box : *boxes)
+            {
+                const double bx0 = box.x0 < box.x1 ? box.x0 : box.x1;
+                const double by0 = box.y0 < box.y1 ? box.y0 : box.y1;
+                const double bz0 = box.z0 < box.z1 ? box.z0 : box.z1;
+                const double bx1 = box.x0 < box.x1 ? box.x1 : box.x0;
+                const double by1 = box.y0 < box.y1 ? box.y1 : box.y0;
+                const double bz1 = box.z0 < box.z1 ? box.z1 : box.z0;
+
+                const double wx0 = static_cast<double>(x) + bx0;
+                const double wy0 = static_cast<double>(y) + by0;
+                const double wz0 = static_cast<double>(z) + bz0;
+                const double wx1 = static_cast<double>(x) + bx1;
+                const double wy1 = static_cast<double>(y) + by1;
+                const double wz1 = static_cast<double>(z) + bz1;
+
+                if (!Intersects(clipBox, wx0, wy0, wz0, wx1, wy1, wz1))
+                    continue;
+
+                void* aabb = AABB_NewTemp(wx0, wy0, wz0, wx1, wy1, wz1);
+                if (aabb)
+                    list->push_back(aabb);
+            }
+            return;
+        }
+
+        if (Original_TileAddAABBs)
+            Original_TileAddAABBs(thisPtr, levelPtr, x, y, z, boxPtr, boxesPtr, sourcePtr);
+    }
+
+    void __fastcall Hooked_TileUpdateDefaultShape(void* thisPtr)
+    {
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(thisPtr);
+        if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty() && Tile_SetShape)
+        {
+            float minX = 0.0f, minY = 0.0f, minZ = 0.0f;
+            float maxX = 0.0f, maxY = 0.0f, maxZ = 0.0f;
+            bool haveBounds = false;
+            for (const auto& box : *boxes)
+            {
+                const float bx0 = box.x0 < box.x1 ? box.x0 : box.x1;
+                const float by0 = box.y0 < box.y1 ? box.y0 : box.y1;
+                const float bz0 = box.z0 < box.z1 ? box.z0 : box.z1;
+                const float bx1 = box.x0 < box.x1 ? box.x1 : box.x0;
+                const float by1 = box.y0 < box.y1 ? box.y1 : box.y0;
+                const float bz1 = box.z0 < box.z1 ? box.z1 : box.z0;
+
+                if (!haveBounds)
+                {
+                    minX = bx0; minY = by0; minZ = bz0;
+                    maxX = bx1; maxY = by1; maxZ = bz1;
+                    haveBounds = true;
+                }
+                else
+                {
+                    if (bx0 < minX) minX = bx0;
+                    if (by0 < minY) minY = by0;
+                    if (bz0 < minZ) minZ = bz0;
+                    if (bx1 > maxX) maxX = bx1;
+                    if (by1 > maxY) maxY = by1;
+                    if (bz1 > maxZ) maxZ = bz1;
+                }
+            }
+
+            if (haveBounds)
+            {
+                Tile_SetShape(thisPtr, minX, minY, minZ, maxX, maxY, maxZ);
+                return;
+            }
+        }
+
+        if (Original_TileUpdateDefaultShape)
+            Original_TileUpdateDefaultShape(thisPtr);
+    }
+
+    bool __fastcall Hooked_TileIsSolidRender(void* thisPtr, bool isServerLevel)
+    {
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(thisPtr);
+        if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty())
+        {
+            if (IsFullCubeModel(*boxes))
+                return Original_TileIsSolidRender ? Original_TileIsSolidRender(thisPtr, isServerLevel) : true;
+            return false;
+        }
+
+        return Original_TileIsSolidRender ? Original_TileIsSolidRender(thisPtr, isServerLevel) : true;
+    }
+
+    bool __fastcall Hooked_TileIsCubeShaped(void* thisPtr)
+    {
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(thisPtr);
+        if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty())
+        {
+            if (IsFullCubeModel(*boxes))
+                return Original_TileIsCubeShaped ? Original_TileIsCubeShaped(thisPtr) : true;
+            return false;
+        }
+
+        return Original_TileIsCubeShaped ? Original_TileIsCubeShaped(thisPtr) : true;
+    }
+
+    void* __fastcall Hooked_TileClip(void* thisPtr, void* levelPtr, int x, int y, int z, void* aPtr, void* bPtr)
+    {
+        if (!thisPtr || !aPtr || !bPtr)
+            return Original_TileClip ? Original_TileClip(thisPtr, levelPtr, x, y, z, aPtr, bPtr) : nullptr;
+
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(thisPtr);
+        if (tileId < 0 || !ModelRegistry::TryGetModel(tileId, boxes) || !boxes || boxes->empty())
+        {
+            return Original_TileClip ? Original_TileClip(thisPtr, levelPtr, x, y, z, aPtr, bPtr) : nullptr;
+        }
+
+        if (!Tile_SetShape || !Original_TileClip)
+            return Original_TileClip ? Original_TileClip(thisPtr, levelPtr, x, y, z, aPtr, bPtr) : nullptr;
+
+        float minX = 0.0f, minY = 0.0f, minZ = 0.0f;
+        float maxX = 0.0f, maxY = 0.0f, maxZ = 0.0f;
+        bool haveBounds = false;
+
+        for (const auto& box : *boxes)
+        {
+            const float bx0f = box.x0 < box.x1 ? box.x0 : box.x1;
+            const float by0f = box.y0 < box.y1 ? box.y0 : box.y1;
+            const float bz0f = box.z0 < box.z1 ? box.z0 : box.z1;
+            const float bx1f = box.x0 < box.x1 ? box.x1 : box.x0;
+            const float by1f = box.y0 < box.y1 ? box.y1 : box.y0;
+            const float bz1f = box.z0 < box.z1 ? box.z1 : box.z0;
+
+            if (!haveBounds)
+            {
+                minX = bx0f; minY = by0f; minZ = bz0f;
+                maxX = bx1f; maxY = by1f; maxZ = bz1f;
+                haveBounds = true;
+            }
+            else
+            {
+                if (bx0f < minX) minX = bx0f;
+                if (by0f < minY) minY = by0f;
+                if (bz0f < minZ) minZ = bz0f;
+                if (bx1f > maxX) maxX = bx1f;
+                if (by1f > maxY) maxY = by1f;
+                if (bz1f > maxZ) maxZ = bz1f;
+            }
+        }
+
+        if (haveBounds)
+            Tile_SetShape(thisPtr, minX, minY, minZ, maxX, maxY, maxZ);
+
+        return Original_TileClip(thisPtr, levelPtr, x, y, z, aPtr, bPtr);
+    }
+
+    static void* ApplyModelClipFallback(void* thisPtr, void* aPtr, void* bPtr, void* originalHit)
+    {
+        if (!thisPtr || !aPtr || !bPtr || !s_levelGetTile || !Vec3_NewTemp || !HitResult_Ctor)
+            return originalHit;
+
+        const Vec3Raw& a = *reinterpret_cast<const Vec3Raw*>(aPtr);
+        const Vec3Raw& b = *reinterpret_cast<const Vec3Raw*>(bPtr);
+        const double dx = b.x - a.x;
+        const double dy = b.y - a.y;
+        const double dz = b.z - a.z;
+        const double rayLenSq = dx * dx + dy * dy + dz * dz;
+        if (rayLenSq < 1e-8)
+            return originalHit;
+
+        const int minX = static_cast<int>(std::floor(a.x < b.x ? a.x : b.x));
+        const int minY = static_cast<int>(std::floor(a.y < b.y ? a.y : b.y));
+        const int minZ = static_cast<int>(std::floor(a.z < b.z ? a.z : b.z));
+        const int maxX = static_cast<int>(std::floor(a.x > b.x ? a.x : b.x));
+        const int maxY = static_cast<int>(std::floor(a.y > b.y ? a.y : b.y));
+        const int maxZ = static_cast<int>(std::floor(a.z > b.z ? a.z : b.z));
+
+        double bestDistSq = 1e30;
+        int bestFace = -1;
+        int bestX = 0;
+        int bestY = 0;
+        int bestZ = 0;
+        double bestT = 2.0;
+
+        for (int x = minX; x <= maxX; ++x)
+        {
+            for (int y = minY; y <= maxY; ++y)
+            {
+                for (int z = minZ; z <= maxZ; ++z)
+                {
+                    const int tileId = s_levelGetTile(thisPtr, x, y, z);
+                    if (tileId <= 0)
+                        continue;
+
+                    const std::vector<ModelBox>* boxes = nullptr;
+                    if (!ModelRegistry::TryGetModel(tileId, boxes) || !boxes || boxes->empty())
+                        continue;
+
+                    for (const auto& box : *boxes)
+                    {
+                        const float bx0f = box.x0 < box.x1 ? box.x0 : box.x1;
+                        const float by0f = box.y0 < box.y1 ? box.y0 : box.y1;
+                        const float bz0f = box.z0 < box.z1 ? box.z0 : box.z1;
+                        const float bx1f = box.x0 < box.x1 ? box.x1 : box.x0;
+                        const float by1f = box.y0 < box.y1 ? box.y1 : box.y0;
+                        const float bz1f = box.z0 < box.z1 ? box.z1 : box.z0;
+
+                        const double wx0 = static_cast<double>(x) + bx0f;
+                        const double wy0 = static_cast<double>(y) + by0f;
+                        const double wz0 = static_cast<double>(z) + bz0f;
+                        const double wx1 = static_cast<double>(x) + bx1f;
+                        const double wy1 = static_cast<double>(y) + by1f;
+                        const double wz1 = static_cast<double>(z) + bz1f;
+
+                        void* aabb = AABB_NewTemp ? AABB_NewTemp(wx0, wy0, wz0, wx1, wy1, wz1) : nullptr;
+                        void* hitPtr = (aabb && AABB_Clip) ? AABB_Clip(aabb, aPtr, bPtr) : nullptr;
+                        if (hitPtr)
+                        {
+                            auto* hr = reinterpret_cast<const HitResultRaw*>(hitPtr);
+                            if (hr->pos)
+                            {
+                                const Vec3Raw& p = *reinterpret_cast<const Vec3Raw*>(hr->pos);
+                                const double ox = p.x - a.x;
+                                const double oy = p.y - a.y;
+                                const double oz = p.z - a.z;
+                                const double distSq = ox * ox + oy * oy + oz * oz;
+                                if (distSq < bestDistSq)
+                                {
+                                    bestDistSq = distSq;
+                                    bestFace = hr->f;
+                                    bestX = x;
+                                    bestY = y;
+                                    bestZ = z;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            double tHit = 0.0;
+                            int face = -1;
+                            if (IntersectSegmentAABB(a, b, wx0, wy0, wz0, wx1, wy1, wz1, tHit, face))
+                            {
+                                const double distSq = (tHit * tHit) * rayLenSq;
+                                if (distSq < bestDistSq)
+                                {
+                                    bestDistSq = distSq;
+                                    bestFace = face;
+                                    bestX = x;
+                                    bestY = y;
+                                    bestZ = z;
+                                    bestT = tHit;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (bestFace < 0)
+            return originalHit;
+
+        const double modelDistSq = bestDistSq;
+        if (originalHit)
+        {
+            auto* hr = reinterpret_cast<const HitResultRaw*>(originalHit);
+            if (hr->type == 1)
+                return originalHit;
+
+            if (hr->pos)
+            {
+                const Vec3Raw& p = *reinterpret_cast<const Vec3Raw*>(hr->pos);
+                const double ox = p.x - a.x;
+                const double oy = p.y - a.y;
+                const double oz = p.z - a.z;
+                const double originalDistSq = ox * ox + oy * oy + oz * oz;
+                if (originalDistSq <= modelDistSq)
+                    return originalHit;
+            }
+        }
+
+        double t = bestT;
+        if (rayLenSq > 1e-8 && bestDistSq >= 0.0)
+        {
+            t = std::sqrt(bestDistSq / rayLenSq);
+            if (t < 0.0) t = 0.0;
+            if (t > 1.0) t = 1.0;
+        }
+        const double hx = a.x + dx * t;
+        const double hy = a.y + dy * t;
+        const double hz = a.z + dz * t;
+        void* pos = Vec3_NewTemp(hx, hy, hz);
+        void* hitMem = ::operator new(64);
+        HitResult_Ctor(hitMem, bestX, bestY, bestZ, bestFace, pos);
+        return hitMem;
+    }
+
+    void* __fastcall Hooked_LevelClip(void* thisPtr, void* aPtr, void* bPtr, bool liquid, bool solidOnly)
+    {
+        void* originalHit = Original_LevelClip ? Original_LevelClip(thisPtr, aPtr, bPtr, liquid, solidOnly) : nullptr;
+        return ApplyModelClipFallback(thisPtr, aPtr, bPtr, originalHit);
+    }
+
+    void* __fastcall Hooked_LivingEntityPick(void* thisPtr, double range, float partialTicks)
+    {
+        void* originalHit = Original_LivingEntityPick ? Original_LivingEntityPick(thisPtr, range, partialTicks) : nullptr;
+
+        if (!thisPtr || !s_livingEntityGetPos || !s_livingEntityGetViewVector || !Vec3_NewTemp)
+            return originalHit;
+
+        void* from = s_livingEntityGetPos(thisPtr, partialTicks);
+        void* dir = s_livingEntityGetViewVector(thisPtr, partialTicks);
+        if (!from || !dir)
+            return originalHit;
+
+        const Vec3Raw& f = *reinterpret_cast<const Vec3Raw*>(from);
+        const Vec3Raw& d = *reinterpret_cast<const Vec3Raw*>(dir);
+        void* to = Vec3_NewTemp(f.x + d.x * range, f.y + d.y * range, f.z + d.z * range);
+        if (!to || !s_currentLevel)
+            return originalHit;
+
+        return ApplyModelClipFallback(s_currentLevel, from, to, originalHit);
     }
 }

@@ -100,6 +100,17 @@ MyMod/
 └── ...
 ```
 
+To drive an icon from a model JSON, call:
+
+```csharp
+.Model("mymod:block/example_ore")
+.Model("mymod:item/example_gem")
+```
+
+WeaveLoader reads the model JSON and uses its texture for the icon.
+
+For block items, WeaveLoader uses the block model by default. An item model JSON is optional.
+
 ## Build and run
 
 ```bash

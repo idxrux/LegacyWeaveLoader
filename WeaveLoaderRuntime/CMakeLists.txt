@@ -96,6 +96,7 @@ add_library(WeaveLoaderRuntime SHARED
     src/CustomBlockRegistry.cpp
     src/CustomSlabRegistry.cpp
     src/ManagedBlockRegistry.cpp
+    src/ModelRegistry.cpp
     src/CreativeInventory.cpp
     src/FurnaceRecipeRegistry.cpp
     src/MainMenuOverlay.cpp

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using WeaveLoader.API;
 
 namespace WeaveLoader.API.Block;
@@ -61,14 +62,18 @@ public class BlockProperties
     internal float ResistanceValue = 5.0f;
     internal SoundType SoundValue = SoundType.Stone;
     internal string IconValue = "stone";
+    internal string? ModelValue;
     internal float LightEmissionValue = 0.0f;
     internal int LightBlockValue = 255;
+    internal bool LightBlockExplicit;
     internal CreativeTab CreativeTabValue = CreativeTab.None;
     internal CreativePlacement? CreativePlacementValue;
     internal Text? NameValue;
     internal int RequiredHarvestLevelValue = -1;
     internal ToolType RequiredToolValue = ToolType.None;
     internal bool AcceptsRedstonePowerValue;
+    internal List<Assets.ModelBox>? ModelBoxes;
+    internal bool ModelIsFullCube;
 
     public BlockProperties Material(MaterialType material) { MaterialValue = material; return this; }
     public BlockProperties Hardness(float hardness) { HardnessValue = hardness; return this; }
@@ -79,8 +84,14 @@ public class BlockProperties
     /// from assets/examplemod/textures/block/ruby_ore.png, or vanilla names like "stone", "gold_ore".
     /// </summary>
     public BlockProperties Icon(string iconName) { IconValue = iconName; return this; }
+    /// <summary>
+    /// Optional Java-style model name (e.g. "examplemod:block/ruby_ore").
+    /// When provided, WeaveLoader will read assets/&lt;namespace&gt;/models/block/&lt;name&gt;.json
+    /// and use its texture for the block icon.
+    /// </summary>
+    public BlockProperties Model(string modelName) { ModelValue = modelName; return this; }
     public BlockProperties LightLevel(float level) { LightEmissionValue = level; return this; }
-    public BlockProperties LightBlocking(int level) { LightBlockValue = level; return this; }
+    public BlockProperties LightBlocking(int level) { LightBlockValue = level; LightBlockExplicit = true; return this; }
     public BlockProperties Indestructible() { HardnessValue = -1.0f; ResistanceValue = 6000000f; return this; }
     public BlockProperties InCreativeTab(CreativeTab tab) { CreativeTabValue = tab; return this; }
     public BlockProperties CreativePlacement(CreativePlacement placement) { CreativePlacementValue = placement; return this; }

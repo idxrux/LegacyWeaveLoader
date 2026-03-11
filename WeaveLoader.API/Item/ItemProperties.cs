@@ -11,6 +11,7 @@ public class ItemProperties
     internal int MaxDamageValue = 0;
     internal float AttackDamageValue = 0.0f;
     internal string IconValue = "";
+    internal string? ModelValue;
     internal CreativeTab CreativeTabValue = CreativeTab.None;
     internal CreativePlacement? CreativePlacementValue;
     internal Text? NameValue;
@@ -21,6 +22,12 @@ public class ItemProperties
     /// from assets/examplemod/textures/item/ruby.png, or vanilla names like "diamond", "ingotIron".
     /// </summary>
     public ItemProperties Icon(string iconName) { IconValue = iconName; return this; }
+    /// <summary>
+    /// Optional Java-style model name (e.g. "examplemod:item/ruby").
+    /// When provided, WeaveLoader will read assets/&lt;namespace&gt;/models/item/&lt;name&gt;.json
+    /// and use its texture for the item icon.
+    /// </summary>
+    public ItemProperties Model(string modelName) { ModelValue = modelName; return this; }
 
     /// <summary>
     /// Set max damage for a tool/armor item. Setting this to a positive value

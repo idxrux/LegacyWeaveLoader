@@ -71,6 +71,12 @@ internal static class NativeInterop
         int acceptsRedstonePower,
         out int doubleNumericBlockId);
 
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void native_register_block_model(
+        int blockId,
+        [In] Assets.ModelBox[] boxes,
+        int count);
+
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int native_register_item(
         string namespacedId,

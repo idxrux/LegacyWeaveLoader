@@ -7,6 +7,9 @@ namespace LogUtil
     // Creates a logs/ subdirectory and sets up all log file paths.
     void SetBaseDir(const char* baseDir);
 
+    // Returns the runtime DLL base directory (with trailing backslash)
+    const char* GetBaseDir();
+
     // Returns the logs directory path (with trailing backslash)
     const char* GetLogsDir();
 

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include "ModelRegistry.h"
 
 namespace NativeExports
 {
@@ -90,6 +91,11 @@ extern "C"
         int requiredTool,
         int acceptsRedstonePower,
         int* outDoubleBlockNumericId);
+
+    __declspec(dllexport) void native_register_block_model(
+        int blockId,
+        const ModelBox* boxes,
+        int count);
 
     __declspec(dllexport) int native_register_item(
         const char* namespacedId,

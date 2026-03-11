@@ -71,6 +71,23 @@ typedef void (__fastcall *BufferedImageCtorDLCPack_fn)(void* thisPtr, void* dlcP
 typedef void* (__fastcall *TextureManagerCreateTexture_fn)(void* thisPtr, const std::wstring& name, int mode, int width, int height, int wrap, int format, int minFilter, int magFilter, bool mipmap, void* image);
 typedef void (__fastcall *TextureTransferFromImage_fn)(void* thisPtr, void* image);
 typedef void* (__fastcall *TexturePackGetImageResource_fn)(void* thisPtr, const std::wstring& file, bool filenameHasExtension, bool bTitleUpdateTexture, const std::wstring& drive);
+typedef bool (__fastcall *TileRendererTesselateInWorld_fn)(void* thisPtr, void* tilePtr, int x, int y, int z, int forceData, void* tileEntitySharedPtr);
+typedef bool (__fastcall *TileRendererTesselateBlockInWorld_fn)(void* thisPtr, void* tilePtr, int x, int y, int z);
+typedef void (__fastcall *TileRendererSetShape_fn)(void* thisPtr, float x0, float y0, float z0, float x1, float y1, float z1);
+typedef void (__fastcall *TileRendererSetShapeTile_fn)(void* thisPtr, void* tilePtr);
+typedef void (__fastcall *TileSetShape_fn)(void* thisPtr, float x0, float y0, float z0, float x1, float y1, float z1);
+typedef void (__fastcall *TileAddAABBs_fn)(void* thisPtr, void* levelPtr, int x, int y, int z, void* boxPtr, void* boxesPtr, void* sourcePtr);
+typedef void (__fastcall *TileUpdateDefaultShape_fn)(void* thisPtr);
+typedef void* (*AABBNewTemp_fn)(double x0, double y0, double z0, double x1, double y1, double z1);
+typedef void* (__fastcall *AABBClip_fn)(void* thisPtr, void* aPtr, void* bPtr);
+typedef bool (__fastcall *TileIsSolidRender_fn)(void* thisPtr, bool isServerLevel);
+typedef bool (__fastcall *TileIsCubeShaped_fn)(void* thisPtr);
+typedef void* (__fastcall *TileClip_fn)(void* thisPtr, void* levelPtr, int x, int y, int z, void* aPtr, void* bPtr);
+typedef void* (*Vec3NewTemp_fn)(double x, double y, double z);
+typedef void (__fastcall *HitResultCtor_fn)(void* thisPtr, int x, int y, int z, int f, void* posPtr);
+typedef void* (__fastcall *LevelClip_fn)(void* thisPtr, void* aPtr, void* bPtr, bool liquid, bool solidOnly);
+typedef void* (__fastcall *LivingEntityGetPos_fn)(void* thisPtr, float partialTicks);
+typedef void* (__fastcall *LivingEntityPick_fn)(void* thisPtr, double range, float partialTicks);
 
 namespace GameHooks
 {
@@ -147,6 +164,22 @@ namespace GameHooks
     extern TextureTransferFromImage_fn Original_TextureTransferFromImage;
     extern TexturePackGetImageResource_fn Original_AbstractTexturePackGetImageResource;
     extern TexturePackGetImageResource_fn Original_DLCTexturePackGetImageResource;
+    extern TileRendererTesselateInWorld_fn Original_TileRendererTesselateInWorld;
+    extern TileRendererTesselateBlockInWorld_fn TileRenderer_TesselateBlockInWorld;
+    extern TileRendererSetShape_fn TileRenderer_SetShape;
+    extern TileRendererSetShapeTile_fn TileRenderer_SetShapeTile;
+    extern TileSetShape_fn Tile_SetShape;
+    extern AABBNewTemp_fn AABB_NewTemp;
+    extern AABBClip_fn AABB_Clip;
+    extern TileAddAABBs_fn Original_TileAddAABBs;
+    extern TileUpdateDefaultShape_fn Original_TileUpdateDefaultShape;
+    extern TileIsSolidRender_fn Original_TileIsSolidRender;
+    extern TileIsCubeShaped_fn Original_TileIsCubeShaped;
+    extern TileClip_fn Original_TileClip;
+    extern Vec3NewTemp_fn Vec3_NewTemp;
+    extern HitResultCtor_fn HitResult_Ctor;
+    extern LevelClip_fn Original_LevelClip;
+    extern LivingEntityPick_fn Original_LivingEntityPick;
 
     void Hooked_RunStaticCtors();
     void __fastcall Hooked_MinecraftTick(void* thisPtr, bool bFirst, bool bUpdateTextures);
@@ -221,6 +254,14 @@ namespace GameHooks
     void __fastcall Hooked_TextureTransferFromImage(void* thisPtr, void* image);
     void* __fastcall Hooked_AbstractTexturePackGetImageResource(void* thisPtr, const std::wstring& file, bool filenameHasExtension, bool bTitleUpdateTexture, const std::wstring& drive);
     void* __fastcall Hooked_DLCTexturePackGetImageResource(void* thisPtr, const std::wstring& file, bool filenameHasExtension, bool bTitleUpdateTexture, const std::wstring& drive);
+    bool __fastcall Hooked_TileRendererTesselateInWorld(void* thisPtr, void* tilePtr, int x, int y, int z, int forceData, void* tileEntitySharedPtr);
+    void __fastcall Hooked_TileAddAABBs(void* thisPtr, void* levelPtr, int x, int y, int z, void* boxPtr, void* boxesPtr, void* sourcePtr);
+    void __fastcall Hooked_TileUpdateDefaultShape(void* thisPtr);
+    bool __fastcall Hooked_TileIsSolidRender(void* thisPtr, bool isServerLevel);
+    bool __fastcall Hooked_TileIsCubeShaped(void* thisPtr);
+    void* __fastcall Hooked_TileClip(void* thisPtr, void* levelPtr, int x, int y, int z, void* aPtr, void* bPtr);
+    void* __fastcall Hooked_LevelClip(void* thisPtr, void* aPtr, void* bPtr, bool liquid, bool solidOnly);
+    void* __fastcall Hooked_LivingEntityPick(void* thisPtr, double range, float partialTicks);
     void SetAtlasLocationPointers(void* blocksLocation, void* itemsLocation);
     void SetTileTilesArray(void* tilesArray);
     void SetSummonSymbols(void* levelAddEntity,
@@ -232,6 +273,7 @@ namespace GameHooks
                              void* itemInstanceHurtAndBreak,
                              void* containerBroadcastChanges,
                              void* entityGetLookAngle,
+                             void* livingEntityGetPos,
                              void* livingEntityGetViewVector,
                              void* entityLerpMotion,
                              void* entitySetPos);

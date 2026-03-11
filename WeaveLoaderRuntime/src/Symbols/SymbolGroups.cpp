@@ -93,11 +93,26 @@ namespace
     static const char* SYM_STONESLABITEM_GETDESCRIPTIONID = "?getDescriptionId@StoneSlabTileItem@@UEAAIV?$shared_ptr@VItemInstance@@@std@@@Z";
     static const char* SYM_HALFSLAB_CLONETILEID = "?cloneTileId@HalfSlabTile@@UEAAHPEAVLevel@@HHH@Z";
     static const char* SYM_TILE_TILES = "?tiles@Tile@@2PEAPEAV1@EA";
+    static const char* SYM_TILE_ADDAABBS = "?addAABBs@Tile@@UEAAXPEAVLevel@@HHHPEAVAABB@@PEAV?$vector@PEAVAABB@@V?$allocator@PEAVAABB@@@std@@@std@@V?$shared_ptr@VEntity@@@5@@Z";
+    static const char* SYM_TILE_UPDATEDEFAULTSHAPE = "?updateDefaultShape@Tile@@UEAAXXZ";
+    static const char* SYM_TILE_SET_SHAPE = "?setShape@Tile@@UEAAXMMMMMM@Z";
+    static const char* SYM_AABB_NEWTEMP = "?newTemp@AABB@@SAPEAV1@NNNNNN@Z";
+    static const char* SYM_AABB_CLIP = "?clip@AABB@@QEAAPEAVHitResult@@PEAVVec3@@0@Z";
+    static const char* SYM_TILE_ISSOLIDRENDER = "?isSolidRender@Tile@@UEAA_N_N@Z";
+    static const char* SYM_TILE_ISCUBESHAPED = "?isCubeShaped@Tile@@UEAA_NXZ";
+    static const char* SYM_TILE_CLIP = "?clip@Tile@@UEAAPEAVHitResult@@PEAVLevel@@HHHPEAVVec3@@1@Z";
+    static const char* SYM_VEC3_NEWTEMP = "?newTemp@Vec3@@SAPEAV1@NNN@Z";
+    static const char* SYM_HITRESULT_CTOR = "??0HitResult@@QEAA@HHHHPEAVVec3@@@Z";
+    static const char* SYM_TILERENDERER_TESSELLATE_IN_WORLD = "?tesselateInWorld@TileRenderer@@QEAA_NPEAVTile@@HHHHV?$shared_ptr@VTileEntity@@@std@@@Z";
+    static const char* SYM_TILERENDERER_TESSELLATE_BLOCK_IN_WORLD = "?tesselateBlockInWorld@TileRenderer@@QEAA_NPEAVTile@@HHH@Z";
+    static const char* SYM_TILERENDERER_SET_SHAPE = "?setShape@TileRenderer@@QEAAXMMMMMM@Z";
+    static const char* SYM_TILERENDERER_SET_SHAPE_TILE = "?setShape@TileRenderer@@QEAAXPEAVTile@@@Z";
 
     static const char* SYM_LEVEL_UPDATE_NEIGHBORS_AT = "?updateNeighborsAt@Level@@QEAAXHHHH@Z";
     static const char* SYM_SERVERLEVEL_TICKPENDINGTICKS = "?tickPendingTicks@ServerLevel@@UEAA_N_N@Z";
     static const char* SYM_LEVEL_GETTILE = "?getTile@Level@@UEAAHHHH@Z";
     static const char* SYM_LEVEL_SETDATA = "?setData@Level@@UEAA_NHHHHH_N@Z";
+    static const char* SYM_LEVEL_CLIP = "?clip@Level@@QEAAPEAVHitResult@@PEAVVec3@@0_N1@Z";
     static const char* SYM_MCREGIONCHUNKSTORAGE_LOAD = "?load@McRegionChunkStorage@@UEAAPEAVLevelChunk@@PEAVLevel@@HH@Z";
     static const char* SYM_MCREGIONCHUNKSTORAGE_SAVE = "?save@McRegionChunkStorage@@UEAAXPEAVLevel@@PEAVLevelChunk@@@Z";
     static const char* SYM_LEVEL_SETTILEANDDATA = "?setTileAndData@Level@@UEAA_NHHHHHH@Z";
@@ -115,6 +130,9 @@ namespace
     static const char* SYM_LIVINGENTITY_GETLOOKANGLE = "?getLookAngle@LivingEntity@@UEAAPEAVVec3@@XZ";
     static const char* SYM_ENTITY_GETLOOKANGLE = "?getLookAngle@Entity@@UEAAPEAVVec3@@XZ";
     static const char* SYM_LIVINGENTITY_GETVIEWVECTOR = "?getViewVector@LivingEntity@@UEAAPEAVVec3@@M@Z";
+    static const char* SYM_LIVINGENTITY_GETPOS = "?getPos@LivingEntity@@QEAAPEAVVec3@@M@Z";
+    static const char* SYM_LIVINGENTITY_GETPOS_V = "?getPos@LivingEntity@@UEAAPEAVVec3@@M@Z";
+    static const char* SYM_LIVINGENTITY_PICK = "?pick@LivingEntity@@UEAAPEAVHitResult@@NM@Z";
     static const char* SYM_ENTITY_LERPMOTION = "?lerpMotion@Entity@@UEAAXNNN@Z";
 
     static const char* SYM_INVENTORY_REMOVERESOURCE = "?removeResource@Inventory@@QEAA_NH@Z";
@@ -328,6 +346,20 @@ bool TileSymbols::Resolve(SymbolResolver& resolver)
     pStoneSlabItemGetDescriptionId = resolver.Resolve(SYM_STONESLABITEM_GETDESCRIPTIONID);
     pHalfSlabCloneTileId = resolver.Resolve(SYM_HALFSLAB_CLONETILEID);
     pTileTiles = resolver.Resolve(SYM_TILE_TILES);
+    pTileAddAABBs = resolver.Resolve(SYM_TILE_ADDAABBS);
+    pTileUpdateDefaultShape = resolver.Resolve(SYM_TILE_UPDATEDEFAULTSHAPE);
+    pTileSetShape = resolver.Resolve(SYM_TILE_SET_SHAPE);
+    pAABBNewTemp = resolver.Resolve(SYM_AABB_NEWTEMP);
+    pAABBClip = resolver.Resolve(SYM_AABB_CLIP);
+    pTileIsSolidRender = resolver.Resolve(SYM_TILE_ISSOLIDRENDER);
+    pTileIsCubeShaped = resolver.Resolve(SYM_TILE_ISCUBESHAPED);
+    pTileClip = resolver.Resolve(SYM_TILE_CLIP);
+    pVec3NewTemp = resolver.Resolve(SYM_VEC3_NEWTEMP);
+    pHitResultCtor = resolver.Resolve(SYM_HITRESULT_CTOR);
+    pTileRendererTesselateInWorld = resolver.Resolve(SYM_TILERENDERER_TESSELLATE_IN_WORLD);
+    pTileRendererTesselateBlockInWorld = resolver.Resolve(SYM_TILERENDERER_TESSELLATE_BLOCK_IN_WORLD);
+    pTileRendererSetShape = resolver.Resolve(SYM_TILERENDERER_SET_SHAPE);
+    pTileRendererSetShapeTile = resolver.Resolve(SYM_TILERENDERER_SET_SHAPE_TILE);
 
     if (resolver.IsStub(pTileOnPlace))
         pTileOnPlace = resolver.ResolveExact("Tile::onPlace");
@@ -337,6 +369,8 @@ bool TileSymbols::Resolve(SymbolResolver& resolver)
         pTileTick = resolver.ResolveExact("Tile::tick");
     if (resolver.IsStub(pWoodSlabRegisterIcons))
         pWoodSlabRegisterIcons = resolver.ResolveExact("WoodSlabTile::registerIcons");
+    if (resolver.IsStub(pTileClip))
+        pTileClip = resolver.ResolveExact("Tile::clip");
     return true;
 }
 
@@ -362,6 +396,20 @@ void TileSymbols::Log() const
     LogSym("StoneSlabTileItem::getDescriptionId", pStoneSlabItemGetDescriptionId);
     LogSym("HalfSlabTile::cloneTileId", pHalfSlabCloneTileId);
     LogSym("Tile::tiles", pTileTiles);
+    LogSym("Tile::addAABBs", pTileAddAABBs);
+    LogSym("Tile::updateDefaultShape", pTileUpdateDefaultShape);
+    LogSym("Tile::setShape", pTileSetShape);
+    LogSym("AABB::newTemp", pAABBNewTemp);
+    LogSym("AABB::clip", pAABBClip);
+    LogSym("Tile::isSolidRender", pTileIsSolidRender);
+    LogSym("Tile::isCubeShaped", pTileIsCubeShaped);
+    LogSym("Tile::clip", pTileClip);
+    LogSym("Vec3::newTemp", pVec3NewTemp);
+    LogSym("HitResult::HitResult", pHitResultCtor);
+    LogSym("TileRenderer::tesselateInWorld", pTileRendererTesselateInWorld);
+    LogSym("TileRenderer::tesselateBlockInWorld", pTileRendererTesselateBlockInWorld);
+    LogSym("TileRenderer::setShape(float)", pTileRendererSetShape);
+    LogSym("TileRenderer::setShape(Tile)", pTileRendererSetShapeTile);
 }
 
 bool LevelSymbols::Resolve(SymbolResolver& resolver)
@@ -370,6 +418,7 @@ bool LevelSymbols::Resolve(SymbolResolver& resolver)
     pServerLevelTickPendingTicks = resolver.Resolve(SYM_SERVERLEVEL_TICKPENDINGTICKS);
     pLevelGetTile = resolver.Resolve(SYM_LEVEL_GETTILE);
     pLevelSetData = resolver.Resolve(SYM_LEVEL_SETDATA);
+    pLevelClip = resolver.Resolve(SYM_LEVEL_CLIP);
     pMcRegionChunkStorageLoad = resolver.Resolve(SYM_MCREGIONCHUNKSTORAGE_LOAD);
     if (!pMcRegionChunkStorageLoad)
         pMcRegionChunkStorageLoad = resolver.ResolveExact("McRegionChunkStorage::load");
@@ -394,6 +443,7 @@ void LevelSymbols::Log() const
     LogSym("ServerLevel::tickPendingTicks", pServerLevelTickPendingTicks);
     LogSym("Level::getTile", pLevelGetTile);
     LogSym("Level::setData", pLevelSetData);
+    LogSym("Level::clip", pLevelClip);
     LogSym("McRegionChunkStorage::load", pMcRegionChunkStorageLoad);
     LogSym("McRegionChunkStorage::save", pMcRegionChunkStorageSave);
     LogSym("Level::setTileAndData", pLevelSetTileAndData);
@@ -417,7 +467,11 @@ bool EntitySymbols::Resolve(SymbolResolver& resolver)
     pEntityMoveTo = resolver.Resolve(SYM_ENTITY_MOVETO);
     pEntitySetPos = resolver.Resolve(SYM_ENTITY_SETPOS);
     pEntityGetLookAngle = resolver.Resolve(SYM_LIVINGENTITY_GETLOOKANGLE);
+    pLivingEntityGetPos = resolver.Resolve(SYM_LIVINGENTITY_GETPOS);
+    if (!pLivingEntityGetPos)
+        pLivingEntityGetPos = resolver.Resolve(SYM_LIVINGENTITY_GETPOS_V);
     pLivingEntityGetViewVector = resolver.Resolve(SYM_LIVINGENTITY_GETVIEWVECTOR);
+    pLivingEntityPick = resolver.Resolve(SYM_LIVINGENTITY_PICK);
     if (!pEntityGetLookAngle)
         pEntityGetLookAngle = resolver.Resolve(SYM_ENTITY_GETLOOKANGLE);
     pEntityLerpMotion = resolver.Resolve(SYM_ENTITY_LERPMOTION);
@@ -434,7 +488,9 @@ void EntitySymbols::Log() const
     LogSym("Entity::moveTo", pEntityMoveTo);
     LogSym("Entity::setPos", pEntitySetPos);
     LogSym("LivingEntity/Entity::getLookAngle", pEntityGetLookAngle);
+    LogSym("LivingEntity::getPos", pLivingEntityGetPos);
     LogSym("LivingEntity::getViewVector", pLivingEntityGetViewVector);
+    LogSym("LivingEntity::pick", pLivingEntityPick);
     LogSym("Entity::lerpMotion", pEntityLerpMotion);
 }
 

@@ -44,7 +44,7 @@ internal class ModManager
         {
             try
             {
-                mod.Instance.OnTick();
+                WithContext(mod, () => mod.Instance.OnTick());
             }
             catch (Exception ex)
             {
@@ -64,12 +64,27 @@ internal class ModManager
     {
         try
         {
-            action();
+            WithContext(mod, action);
         }
         catch (Exception ex)
         {
             Logger.Error($"[{mod.Metadata.Id}] {phase} failed: {ex.Message}");
             Logger.Debug(ex.StackTrace ?? "");
+        }
+    }
+
+    private static void WithContext(ModDiscovery.DiscoveredMod mod, Action action)
+    {
+        ModContext.ModId = mod.Metadata.Id;
+        ModContext.ModFolder = mod.Folder;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            ModContext.ModId = null;
+            ModContext.ModFolder = null;
         }
     }
 }

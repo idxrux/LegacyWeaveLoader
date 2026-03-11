@@ -1,0 +1,13 @@
+{
+  "textures": {
+    "all": "examplemod:block/ruby_wood_planks"
+  },
+  "elements": [
+    { "from": [2, 8, 2], "to": [14, 10, 14], "faces": { "north": { "texture": "#all" }, "south": { "texture": "#all" }, "west": { "texture": "#all" }, "east": { "texture": "#all" }, "up": { "texture": "#all" }, "down": { "texture": "#all" } } },
+    { "from": [2, 10, 12], "to": [14, 22, 14], "faces": { "north": { "texture": "#all" }, "south": { "texture": "#all" }, "west": { "texture": "#all" }, "east": { "texture": "#all" }, "up": { "texture": "#all" }, "down": { "texture": "#all" } } },
+    { "from": [2, 0, 2], "to": [4, 8, 4], "faces": { "north": { "texture": "#all" }, "south": { "texture": "#all" }, "west": { "texture": "#all" }, "east": { "texture": "#all" }, "up": { "texture": "#all" }, "down": { "texture": "#all" } } },
+    { "from": [12, 0, 2], "to": [14, 8, 4], "faces": { "north": { "texture": "#all" }, "south": { "texture": "#all" }, "west": { "texture": "#all" }, "east": { "texture": "#all" }, "up": { "texture": "#all" }, "down": { "texture": "#all" } } },
+    { "from": [2, 0, 12], "to": [4, 8, 14], "faces": { "north": { "texture": "#all" }, "south": { "texture": "#all" }, "west": { "texture": "#all" }, "east": { "texture": "#all" }, "up": { "texture": "#all" }, "down": { "texture": "#all" } } },
+    { "from": [12, 0, 12], "to": [14, 8, 14], "faces": { "north": { "texture": "#all" }, "south": { "texture": "#all" }, "west": { "texture": "#all" }, "east": { "texture": "#all" }, "up": { "texture": "#all" }, "down": { "texture": "#all" } } }
+  ]
+}

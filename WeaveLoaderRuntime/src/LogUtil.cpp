@@ -9,6 +9,7 @@ static std::string s_logsDir;
 static std::string s_logPath;
 static std::string s_gameLogPath;
 static std::string s_crashLogPath;
+static std::string s_baseDir;
 
 static void GetTimestamp(char* buf, size_t bufSize)
 {
@@ -24,11 +25,17 @@ namespace LogUtil
 
 void SetBaseDir(const char* baseDir)
 {
-    s_logsDir      = std::string(baseDir) + "logs\\";
+    s_baseDir      = baseDir ? std::string(baseDir) : std::string();
+    s_logsDir      = s_baseDir + "logs\\";
     CreateDirectoryA(s_logsDir.c_str(), nullptr);
     s_logPath      = s_logsDir + "weaveloader.log";
     s_gameLogPath  = s_logsDir + "game_debug.log";
     s_crashLogPath = s_logsDir + "crash.log";
+}
+
+const char* GetBaseDir()
+{
+    return s_baseDir.c_str();
 }
 
 const char* GetLogsDir()

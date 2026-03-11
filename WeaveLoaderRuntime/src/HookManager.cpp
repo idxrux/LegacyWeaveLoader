@@ -29,6 +29,23 @@ bool HookManager::Install(const SymbolResolver& symbols)
         symbols.Level.pLevelChunkGetHighestNonEmptyY);
     WorldIdRemap::SetCompressedTileStorageSetSymbol(symbols.Level.pCompressedTileStorageSet);
 
+    GameHooks::TileRenderer_TesselateBlockInWorld =
+        reinterpret_cast<TileRendererTesselateBlockInWorld_fn>(symbols.Tile.pTileRendererTesselateBlockInWorld);
+    GameHooks::TileRenderer_SetShape =
+        reinterpret_cast<TileRendererSetShape_fn>(symbols.Tile.pTileRendererSetShape);
+    GameHooks::TileRenderer_SetShapeTile =
+        reinterpret_cast<TileRendererSetShapeTile_fn>(symbols.Tile.pTileRendererSetShapeTile);
+    GameHooks::Tile_SetShape =
+        reinterpret_cast<TileSetShape_fn>(symbols.Tile.pTileSetShape);
+    GameHooks::AABB_NewTemp =
+        reinterpret_cast<AABBNewTemp_fn>(symbols.Tile.pAABBNewTemp);
+    GameHooks::AABB_Clip =
+        reinterpret_cast<AABBClip_fn>(symbols.Tile.pAABBClip);
+    GameHooks::Vec3_NewTemp =
+        reinterpret_cast<Vec3NewTemp_fn>(symbols.Tile.pVec3NewTemp);
+    GameHooks::HitResult_Ctor =
+        reinterpret_cast<HitResultCtor_fn>(symbols.Tile.pHitResultCtor);
+
     if (symbols.Core.pRunStaticCtors)
     {
         if (MH_CreateHook(symbols.Core.pRunStaticCtors,
@@ -440,6 +457,108 @@ bool HookManager::Install(const SymbolResolver& symbols)
         else
         {
             LogUtil::Log("[WeaveLoader] Hooked Tile::cloneTileId (managed block pick-block)");
+        }
+    }
+
+    if (symbols.Tile.pTileAddAABBs)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileAddAABBs,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileAddAABBs),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileAddAABBs)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Tile::addAABBs");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Tile::addAABBs (block model collisions)");
+        }
+    }
+
+    if (symbols.Tile.pTileUpdateDefaultShape)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileUpdateDefaultShape,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileUpdateDefaultShape),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileUpdateDefaultShape)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Tile::updateDefaultShape");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Tile::updateDefaultShape (block model bounds)");
+        }
+    }
+
+    if (symbols.Tile.pTileIsSolidRender)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileIsSolidRender,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileIsSolidRender),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileIsSolidRender)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Tile::isSolidRender");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Tile::isSolidRender (block model culling)");
+        }
+    }
+
+    if (symbols.Tile.pTileIsCubeShaped)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileIsCubeShaped,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileIsCubeShaped),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileIsCubeShaped)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Tile::isCubeShaped");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Tile::isCubeShaped (block model shape)");
+        }
+    }
+
+    if (symbols.Tile.pTileClip)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileClip,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileClip),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileClip)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Tile::clip");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Tile::clip (block model picking)");
+        }
+    }
+
+    if (symbols.Level.pLevelClip)
+    {
+        if (MH_CreateHook(symbols.Level.pLevelClip,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_LevelClip),
+                          reinterpret_cast<void**>(&GameHooks::Original_LevelClip)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Level::clip");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Level::clip (block model picking)");
+        }
+    }
+    else
+    {
+        LogUtil::Log("[WeaveLoader] Warning: Level::clip symbol not found; model picking disabled");
+    }
+
+    if (symbols.Tile.pTileRendererTesselateInWorld)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileRendererTesselateInWorld,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileRendererTesselateInWorld),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileRendererTesselateInWorld)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook TileRenderer::tesselateInWorld");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked TileRenderer::tesselateInWorld (block models)");
         }
     }
 
@@ -863,9 +982,24 @@ bool HookManager::Install(const SymbolResolver& symbols)
         symbols.Item.pItemInstanceHurtAndBreak,
         symbols.Inventory.pAbstractContainerMenuBroadcastChanges,
         symbols.Entity.pEntityGetLookAngle,
+        symbols.Entity.pLivingEntityGetPos,
         symbols.Entity.pLivingEntityGetViewVector,
         symbols.Entity.pEntityLerpMotion,
         symbols.Entity.pEntitySetPos);
+
+    if (symbols.Entity.pLivingEntityPick)
+    {
+        if (MH_CreateHook(symbols.Entity.pLivingEntityPick,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_LivingEntityPick),
+                          reinterpret_cast<void**>(&GameHooks::Original_LivingEntityPick)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook LivingEntity::pick");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked LivingEntity::pick (block model picking)");
+        }
+    }
 
     if (symbols.Texture.pPreStitchedTextureMapStitch)
     {

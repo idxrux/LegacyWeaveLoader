@@ -113,6 +113,20 @@ struct TileSymbols
     void* pStoneSlabItemGetDescriptionId = nullptr;
     void* pHalfSlabCloneTileId = nullptr;
     void* pTileTiles = nullptr;
+    void* pTileAddAABBs = nullptr;
+    void* pTileUpdateDefaultShape = nullptr;
+    void* pTileSetShape = nullptr;
+    void* pAABBNewTemp = nullptr;
+    void* pAABBClip = nullptr;
+    void* pTileIsSolidRender = nullptr;
+    void* pTileIsCubeShaped = nullptr;
+    void* pTileClip = nullptr;
+    void* pVec3NewTemp = nullptr;
+    void* pHitResultCtor = nullptr;
+    void* pTileRendererTesselateInWorld = nullptr;
+    void* pTileRendererTesselateBlockInWorld = nullptr;
+    void* pTileRendererSetShape = nullptr;
+    void* pTileRendererSetShapeTile = nullptr;
 
     bool Resolve(SymbolResolver& resolver);
     void Log() const;
@@ -124,6 +138,7 @@ struct LevelSymbols
     void* pServerLevelTickPendingTicks = nullptr;
     void* pLevelGetTile = nullptr;
     void* pLevelSetData = nullptr;
+    void* pLevelClip = nullptr;
     void* pMcRegionChunkStorageLoad = nullptr;
     void* pMcRegionChunkStorageSave = nullptr;
     void* pLevelSetTileAndData = nullptr;
@@ -150,7 +165,9 @@ struct EntitySymbols
     void* pEntityMoveTo = nullptr;
     void* pEntitySetPos = nullptr;
     void* pEntityGetLookAngle = nullptr;
+    void* pLivingEntityGetPos = nullptr;
     void* pLivingEntityGetViewVector = nullptr;
+    void* pLivingEntityPick = nullptr;
     void* pEntityLerpMotion = nullptr;
 
     bool Resolve(SymbolResolver& resolver);

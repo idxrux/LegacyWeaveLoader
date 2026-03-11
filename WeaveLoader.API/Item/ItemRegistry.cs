@@ -104,6 +104,7 @@ public static class ItemRegistry
 
     private static RegisteredItem RegisterInternal(Identifier id, ItemProperties properties, Item? managedItem)
     {
+        Assets.ModelResolver.ApplyItemModel(id, properties);
         int numericId;
         if (managedItem is PickaxeItem pickaxeItem)
         {

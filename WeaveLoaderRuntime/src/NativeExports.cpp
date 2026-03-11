@@ -307,6 +307,11 @@ int native_register_slab_block(
     return halfId;
 }
 
+void native_register_block_model(int blockId, const ModelBox* boxes, int count)
+{
+    ModelRegistry::RegisterBlockModel(blockId, boxes, count);
+}
+
 void native_configure_managed_block(int numericBlockId, int dropNumericBlockId, int cloneNumericBlockId)
 {
     if (numericBlockId < 0)

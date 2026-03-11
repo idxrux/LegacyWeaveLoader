@@ -14,6 +14,7 @@ public class ExampleMod : IMod
     public static RegisteredBlock? RubyOre;
     public static RegisteredBlock? RubyStone;
     public static RegisteredBlock? RubyWoodPlanks;
+    public static RegisteredBlock? RubyChair;
     public static RegisteredBlock? RubySand;
     public static RegisteredSlabBlock? RubyStoneSlab;
     public static RegisteredSlabBlock? RubyWoodSlab;
@@ -235,6 +236,16 @@ public class ExampleMod : IMod
                 .Icon("examplemod:block/ruby_wood_planks")
                 .Name(Text.Translatable("block.examplemod.ruby_wood_planks"))
                 .InCreativeTab(CreativeTab.BuildingBlocks));
+
+        RubyChair = Registry.Block.Register("examplemod:ruby_chair",
+            new BlockProperties()
+                .Material(MaterialType.Wood)
+                .Hardness(1.5f)
+                .Resistance(5f)
+                .Sound(SoundType.Wood)
+                .Model("examplemod:block/ruby_chair")
+                .Name(Text.Translatable("block.examplemod.ruby_chair"))
+                .InCreativeTab(CreativeTab.Decoration));
 
         RubySand = Registry.Block.Register("examplemod:ruby_sand",
             new RubySandBlock(),
