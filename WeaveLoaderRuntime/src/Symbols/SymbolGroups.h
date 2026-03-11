@@ -127,6 +127,7 @@ struct TileSymbols
     void* pTileRendererTesselateBlockInWorld = nullptr;
     void* pTileRendererSetShape = nullptr;
     void* pTileRendererSetShapeTile = nullptr;
+    void* pTileRendererRenderTile = nullptr;
 
     bool Resolve(SymbolResolver& resolver);
     void Log() const;

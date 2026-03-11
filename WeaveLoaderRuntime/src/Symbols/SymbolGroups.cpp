@@ -107,6 +107,7 @@ namespace
     static const char* SYM_TILERENDERER_TESSELLATE_BLOCK_IN_WORLD = "?tesselateBlockInWorld@TileRenderer@@QEAA_NPEAVTile@@HHH@Z";
     static const char* SYM_TILERENDERER_SET_SHAPE = "?setShape@TileRenderer@@QEAAXMMMMMM@Z";
     static const char* SYM_TILERENDERER_SET_SHAPE_TILE = "?setShape@TileRenderer@@QEAAXPEAVTile@@@Z";
+    static const char* SYM_TILERENDERER_RENDER_TILE = "?renderTile@TileRenderer@@QEAAXPEAVTile@@HMM_N@Z";
 
     static const char* SYM_LEVEL_UPDATE_NEIGHBORS_AT = "?updateNeighborsAt@Level@@QEAAXHHHH@Z";
     static const char* SYM_SERVERLEVEL_TICKPENDINGTICKS = "?tickPendingTicks@ServerLevel@@UEAA_N_N@Z";
@@ -360,6 +361,7 @@ bool TileSymbols::Resolve(SymbolResolver& resolver)
     pTileRendererTesselateBlockInWorld = resolver.Resolve(SYM_TILERENDERER_TESSELLATE_BLOCK_IN_WORLD);
     pTileRendererSetShape = resolver.Resolve(SYM_TILERENDERER_SET_SHAPE);
     pTileRendererSetShapeTile = resolver.Resolve(SYM_TILERENDERER_SET_SHAPE_TILE);
+    pTileRendererRenderTile = resolver.Resolve(SYM_TILERENDERER_RENDER_TILE);
 
     if (resolver.IsStub(pTileOnPlace))
         pTileOnPlace = resolver.ResolveExact("Tile::onPlace");
@@ -410,6 +412,7 @@ void TileSymbols::Log() const
     LogSym("TileRenderer::tesselateBlockInWorld", pTileRendererTesselateBlockInWorld);
     LogSym("TileRenderer::setShape(float)", pTileRendererSetShape);
     LogSym("TileRenderer::setShape(Tile)", pTileRendererSetShapeTile);
+    LogSym("TileRenderer::renderTile", pTileRendererRenderTile);
 }
 
 bool LevelSymbols::Resolve(SymbolResolver& resolver)

@@ -562,6 +562,20 @@ bool HookManager::Install(const SymbolResolver& symbols)
         }
     }
 
+    if (symbols.Tile.pTileRendererRenderTile)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileRendererRenderTile,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileRendererRenderTile),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileRendererRenderTile)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook TileRenderer::renderTile");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked TileRenderer::renderTile (block models in inventory)");
+        }
+    }
+
     if (symbols.Tile.pStoneSlabGetTexture)
     {
         if (MH_CreateHook(symbols.Tile.pStoneSlabGetTexture,

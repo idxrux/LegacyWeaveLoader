@@ -110,6 +110,7 @@ namespace GameHooks
     TileRendererTesselateBlockInWorld_fn TileRenderer_TesselateBlockInWorld = nullptr;
     TileRendererSetShape_fn TileRenderer_SetShape = nullptr;
     TileRendererSetShapeTile_fn TileRenderer_SetShapeTile = nullptr;
+    TileRendererRenderTile_fn Original_TileRendererRenderTile = nullptr;
     TileSetShape_fn Tile_SetShape = nullptr;
     AABBNewTemp_fn AABB_NewTemp = nullptr;
     AABBClip_fn AABB_Clip = nullptr;
@@ -389,6 +390,7 @@ namespace GameHooks
 
             return rendered;
         }
+
     }
     static int s_itemMineBlockHookCalls = 0;
     static void* s_currentLevel = nullptr;
@@ -475,6 +477,9 @@ namespace GameHooks
     static bool s_preInitCalled = false;
     static bool s_initCalled = false;
     static bool s_postInitCalled = false;
+    static thread_local bool s_inventoryShapeOverrideActive = false;
+    static thread_local void* s_inventoryShapeOverrideTile = nullptr;
+    static thread_local ModelBox s_inventoryShapeOverrideBox{};
 
     static void EnsurePageResourcesInitialized()
     {
@@ -3033,6 +3038,32 @@ namespace GameHooks
             : false;
     }
 
+    void __fastcall Hooked_TileRendererRenderTile(void* thisPtr, void* tilePtr, int data, float brightness, float fAlpha, bool useCompiled)
+    {
+        const std::vector<ModelBox>* boxes = nullptr;
+        int tileId = GetTileId(tilePtr);
+        if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty())
+        {
+            if (Original_TileRendererRenderTile && Tile_SetShape)
+            {
+                s_inventoryShapeOverrideTile = tilePtr;
+                s_inventoryShapeOverrideActive = true;
+                for (const auto& box : *boxes)
+                {
+                    s_inventoryShapeOverrideBox = box;
+                    Original_TileRendererRenderTile(thisPtr, tilePtr, data, brightness, fAlpha, useCompiled);
+                }
+                s_inventoryShapeOverrideActive = false;
+                s_inventoryShapeOverrideTile = nullptr;
+                Hooked_TileUpdateDefaultShape(tilePtr);
+                return;
+            }
+        }
+
+        if (Original_TileRendererRenderTile)
+            Original_TileRendererRenderTile(thisPtr, tilePtr, data, brightness, fAlpha, useCompiled);
+    }
+
     void __fastcall Hooked_TileAddAABBs(void* thisPtr, void* levelPtr, int x, int y, int z, void* boxPtr, void* boxesPtr, void* sourcePtr)
     {
         const std::vector<ModelBox>* boxes = nullptr;
@@ -3074,6 +3105,19 @@ namespace GameHooks
 
     void __fastcall Hooked_TileUpdateDefaultShape(void* thisPtr)
     {
+        if (s_inventoryShapeOverrideActive && s_inventoryShapeOverrideTile == thisPtr && Tile_SetShape)
+        {
+            const ModelBox& box = s_inventoryShapeOverrideBox;
+            const float bx0 = box.x0 < box.x1 ? box.x0 : box.x1;
+            const float by0 = box.y0 < box.y1 ? box.y0 : box.y1;
+            const float bz0 = box.z0 < box.z1 ? box.z0 : box.z1;
+            const float bx1 = box.x0 < box.x1 ? box.x1 : box.x0;
+            const float by1 = box.y0 < box.y1 ? box.y1 : box.y0;
+            const float bz1 = box.z0 < box.z1 ? box.z1 : box.z0;
+            Tile_SetShape(thisPtr, bx0, by0, bz0, bx1, by1, bz1);
+            return;
+        }
+
         const std::vector<ModelBox>* boxes = nullptr;
         int tileId = GetTileId(thisPtr);
         if (tileId >= 0 && ModelRegistry::TryGetModel(tileId, boxes) && boxes && !boxes->empty() && Tile_SetShape)

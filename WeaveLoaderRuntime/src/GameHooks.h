@@ -75,6 +75,7 @@ typedef bool (__fastcall *TileRendererTesselateInWorld_fn)(void* thisPtr, void* 
 typedef bool (__fastcall *TileRendererTesselateBlockInWorld_fn)(void* thisPtr, void* tilePtr, int x, int y, int z);
 typedef void (__fastcall *TileRendererSetShape_fn)(void* thisPtr, float x0, float y0, float z0, float x1, float y1, float z1);
 typedef void (__fastcall *TileRendererSetShapeTile_fn)(void* thisPtr, void* tilePtr);
+typedef void (__fastcall *TileRendererRenderTile_fn)(void* thisPtr, void* tilePtr, int data, float brightness, float fAlpha, bool useCompiled);
 typedef void (__fastcall *TileSetShape_fn)(void* thisPtr, float x0, float y0, float z0, float x1, float y1, float z1);
 typedef void (__fastcall *TileAddAABBs_fn)(void* thisPtr, void* levelPtr, int x, int y, int z, void* boxPtr, void* boxesPtr, void* sourcePtr);
 typedef void (__fastcall *TileUpdateDefaultShape_fn)(void* thisPtr);
@@ -168,6 +169,7 @@ namespace GameHooks
     extern TileRendererTesselateBlockInWorld_fn TileRenderer_TesselateBlockInWorld;
     extern TileRendererSetShape_fn TileRenderer_SetShape;
     extern TileRendererSetShapeTile_fn TileRenderer_SetShapeTile;
+    extern TileRendererRenderTile_fn Original_TileRendererRenderTile;
     extern TileSetShape_fn Tile_SetShape;
     extern AABBNewTemp_fn AABB_NewTemp;
     extern AABBClip_fn AABB_Clip;
@@ -262,6 +264,7 @@ namespace GameHooks
     void* __fastcall Hooked_TileClip(void* thisPtr, void* levelPtr, int x, int y, int z, void* aPtr, void* bPtr);
     void* __fastcall Hooked_LevelClip(void* thisPtr, void* aPtr, void* bPtr, bool liquid, bool solidOnly);
     void* __fastcall Hooked_LivingEntityPick(void* thisPtr, double range, float partialTicks);
+    void __fastcall Hooked_TileRendererRenderTile(void* thisPtr, void* tilePtr, int data, float brightness, float fAlpha, bool useCompiled);
     void SetAtlasLocationPointers(void* blocksLocation, void* itemsLocation);
     void SetTileTilesArray(void* tilesArray);
     void SetSummonSymbols(void* levelAddEntity,
