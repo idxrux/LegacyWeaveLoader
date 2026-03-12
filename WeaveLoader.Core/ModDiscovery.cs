@@ -26,6 +26,7 @@ internal static class ModDiscovery
         var apiFolder = Path.Combine(modsPath, "WeaveLoader.API");
         if (Directory.Exists(apiFolder))
         {
+            ModContext.ApiModFolder = apiFolder;
             var apiMod = new WeaveLoaderApiMod();
             var attr = typeof(WeaveLoaderApiMod).GetCustomAttribute<ModAttribute>()!;
             mods.Add(new DiscoveredMod(apiMod, attr, typeof(ModDiscovery).Assembly, apiFolder));

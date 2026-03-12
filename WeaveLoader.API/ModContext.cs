@@ -4,4 +4,5 @@ public static class ModContext
 {
     public static string? ModId { get; internal set; }
     public static string? ModFolder { get; internal set; }
+    public static string? ApiModFolder { get; internal set; }
 }

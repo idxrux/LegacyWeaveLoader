@@ -261,13 +261,36 @@ internal static class ModelResolver
         }
 
         string modRoot = ModContext.ModFolder ?? "";
-        if (string.IsNullOrWhiteSpace(modRoot))
-            return false;
+        if (!string.IsNullOrWhiteSpace(modRoot))
+        {
+            string file = Path.Combine(modRoot, "assets", ns, "models", rel.Replace('/', Path.DirectorySeparatorChar) + ".json");
+            if (File.Exists(file))
+            {
+                modelPath = file;
+                modelNamespace = ns;
+                return true;
+            }
 
-        string file = Path.Combine(modRoot, "assets", ns, "models", rel.Replace('/', Path.DirectorySeparatorChar) + ".json");
-        modelPath = file;
-        modelNamespace = ns;
-        return true;
+            if (TryGetSharedModelFilePath(ns, rel, out string sharedPath))
+            {
+                modelPath = sharedPath;
+                modelNamespace = ns;
+                return true;
+            }
+
+            modelPath = file;
+            modelNamespace = ns;
+            return true;
+        }
+
+        if (TryGetSharedModelFilePath(ns, rel, out string fallbackPath))
+        {
+            modelPath = fallbackPath;
+            modelNamespace = ns;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryGetBlockStateFilePath(Identifier id, string? blockStateValue, out string blockStatePath)
@@ -440,9 +463,55 @@ internal static class ModelResolver
             return false;
 
         string relative = value.Replace('/', Path.DirectorySeparatorChar);
-        string fullPath = Path.Combine(ModContext.ModFolder!, "assets", ns, "models", relative + ".json");
-        modelPath = fullPath;
-        modelNamespace = ns;
+        string? modRoot = ModContext.ModFolder;
+        if (!string.IsNullOrWhiteSpace(modRoot))
+        {
+            string fullPath = Path.Combine(modRoot!, "assets", ns, "models", relative + ".json");
+            if (File.Exists(fullPath))
+            {
+                modelPath = fullPath;
+                modelNamespace = ns;
+                return true;
+            }
+
+            if (TryGetSharedModelFilePath(ns, relative, out string sharedPath))
+            {
+                modelPath = sharedPath;
+                modelNamespace = ns;
+                return true;
+            }
+
+            modelPath = fullPath;
+            modelNamespace = ns;
+            return true;
+        }
+
+        if (TryGetSharedModelFilePath(ns, relative, out string fallbackPath))
+        {
+            modelPath = fallbackPath;
+            modelNamespace = ns;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetSharedModelFilePath(string ns, string relative, out string modelPath)
+    {
+        modelPath = "";
+
+        if (!ns.Equals("minecraft", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string? apiRoot = ModContext.ApiModFolder;
+        if (string.IsNullOrWhiteSpace(apiRoot))
+            return false;
+
+        string file = Path.Combine(apiRoot!, "assets", ns, "models", relative.Replace('/', Path.DirectorySeparatorChar) + ".json");
+        if (!File.Exists(file))
+            return false;
+
+        modelPath = file;
         return true;
     }
 

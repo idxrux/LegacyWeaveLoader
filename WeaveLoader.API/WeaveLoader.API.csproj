@@ -17,8 +17,11 @@
   <Target Name="CopyModAssets" AfterTargets="Build">
     <MakeDir Directories="$(OutputPath)assets\weaveloader.api\textures\block" />
     <MakeDir Directories="$(OutputPath)assets\weaveloader.api\textures\item" />
+    <MakeDir Directories="$(OutputPath)assets\minecraft\models\item" />
     <Copy SourceFiles="mod_assets\weaveloader.api\textures\block\missing_block.png" DestinationFolder="$(OutputPath)assets\weaveloader.api\textures\block\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="mod_assets\weaveloader.api\textures\item\missing_item.png" DestinationFolder="$(OutputPath)assets\weaveloader.api\textures\item\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="mod_assets\minecraft\models\item\generated.json" DestinationFolder="$(OutputPath)assets\minecraft\models\item\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="mod_assets\minecraft\models\item\handheld.json" DestinationFolder="$(OutputPath)assets\minecraft\models\item\" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
