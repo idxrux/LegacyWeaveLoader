@@ -492,6 +492,20 @@ bool HookManager::Install(const SymbolResolver& symbols)
         }
     }
 
+    if (symbols.Tile.pTileGetPlacedOnFaceDataValue)
+    {
+        if (MH_CreateHook(symbols.Tile.pTileGetPlacedOnFaceDataValue,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_TileGetPlacedOnFaceDataValue),
+                          reinterpret_cast<void**>(&GameHooks::Original_TileGetPlacedOnFaceDataValue)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook Tile::getPlacedOnFaceDataValue");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked Tile::getPlacedOnFaceDataValue (rotation placement)");
+        }
+    }
+
     if (symbols.Tile.pTileCloneTileId)
     {
         if (MH_CreateHook(symbols.Tile.pTileCloneTileId,

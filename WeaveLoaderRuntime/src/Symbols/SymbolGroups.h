@@ -98,6 +98,7 @@ struct TileSymbols
     void* pTileNeighborChanged = nullptr;
     void* pTileTick = nullptr;
     void* pTileGetResource = nullptr;
+    void* pTileGetPlacedOnFaceDataValue = nullptr;
     void* pTileCloneTileId = nullptr;
     void* pTileGetTextureFaceData = nullptr;
     void* pStoneSlabGetTexture = nullptr;

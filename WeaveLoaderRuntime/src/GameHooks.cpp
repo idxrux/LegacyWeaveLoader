@@ -76,6 +76,7 @@ namespace GameHooks
     LevelGetData_fn Level_GetData = nullptr;
     ServerLevelTickPendingTicks_fn Original_ServerLevelTickPendingTicks = nullptr;
     TileGetResource_fn Original_TileGetResource = nullptr;
+    TileGetPlacedOnFaceDataValue_fn Original_TileGetPlacedOnFaceDataValue = nullptr;
     McRegionChunkStorageLoad_fn Original_McRegionChunkStorageLoad = nullptr;
     McRegionChunkStorageSave_fn Original_McRegionChunkStorageSave = nullptr;
     TileCloneTileId_fn Original_TileCloneTileId = nullptr;
@@ -1909,21 +1910,8 @@ namespace GameHooks
     bool __fastcall Hooked_LevelSetTileAndData(void* thisPtr, int x, int y, int z, int tile, int data, int updateFlags)
     {
         const int oldBlockId = s_levelGetTile ? s_levelGetTile(thisPtr, x, y, z) : -1;
-        const bool result = Original_LevelSetTileAndData
-            ? Original_LevelSetTileAndData(thisPtr, x, y, z, tile, data, updateFlags)
-            : false;
-
-        if (result && s_levelGetTile)
-            WorldIdRemap::MarkChunkDirtyByBlockUpdate(x, z, oldBlockId, tile);
-
-        if (result && tile > 0)
-            DispatchManagedBlockById(tile, thisPtr, x, y, z, 0, 0);
-
-        bool isClientSide = false;
-        if (thisPtr && IsReadableRange(static_cast<char*>(thisPtr) + kLevelIsClientSideOffset, sizeof(bool)))
-            isClientSide = *reinterpret_cast<bool*>(static_cast<char*>(thisPtr) + kLevelIsClientSideOffset);
-
-        if (result && tile > 0 && Original_LevelSetData && !isClientSide)
+        int effectiveData = data;
+        if (tile > 0)
         {
             const int profile = ModelRegistry::GetRotationProfile(tile);
             if (profile == 1 || profile == 3)
@@ -1939,18 +1927,14 @@ namespace GameHooks
                     float yaw = 0.0f;
                     if (TryGetEntityYaw(playerPtr, yaw))
                     {
-                        int newData = data;
                         if (profile == 1)
-                            newData = ComputeFacingDataFromYaw(yaw);
+                            effectiveData = ComputeFacingDataFromYaw(yaw);
                         else
-                            newData = ComputeStandingSignDataFromYaw(yaw);
-
-                        if (newData != data)
-                            Original_LevelSetData(thisPtr, x, y, z, newData, updateFlags, false);
+                            effectiveData = ComputeStandingSignDataFromYaw(yaw);
 
                         if (s_rotationLogCount < 20)
                         {
-                            LogUtil::Log("[WeaveLoader] Rotation: yaw=%.2f data=%d -> %d", yaw, data, newData);
+                            LogUtil::Log("[WeaveLoader] Rotation: yaw=%.2f data=%d -> %d", yaw, data, effectiveData);
                             s_rotationLogCount++;
                         }
                     }
@@ -1967,6 +1951,16 @@ namespace GameHooks
                 }
             }
         }
+
+        const bool result = Original_LevelSetTileAndData
+            ? Original_LevelSetTileAndData(thisPtr, x, y, z, tile, effectiveData, updateFlags)
+            : false;
+
+        if (result && s_levelGetTile)
+            WorldIdRemap::MarkChunkDirtyByBlockUpdate(x, z, oldBlockId, tile);
+
+        if (result && tile > 0)
+            DispatchManagedBlockById(tile, thisPtr, x, y, z, 0, 0);
 
         return result;
     }
@@ -2066,6 +2060,35 @@ namespace GameHooks
         if (def && def->dropBlockId >= 0)
             return def->dropBlockId;
         return Original_TileGetResource ? Original_TileGetResource(thisPtr, data, random, playerBonusLevel) : 0;
+    }
+
+    int __fastcall Hooked_TileGetPlacedOnFaceDataValue(void* thisPtr, void* levelPtr, int x, int y, int z, int face, float clickX, float clickY, float clickZ, int itemValue)
+    {
+        int result = Original_TileGetPlacedOnFaceDataValue
+            ? Original_TileGetPlacedOnFaceDataValue(thisPtr, levelPtr, x, y, z, face, clickX, clickY, clickZ, itemValue)
+            : itemValue;
+
+        int tileId = GetTileId(thisPtr);
+        if (tileId < 0)
+            return result;
+
+        const int profile = ModelRegistry::GetRotationProfile(tileId);
+        if (profile == 1 || profile == 3)
+        {
+            void* playerPtr = nullptr;
+            if (TryGetPlacementPlayer(levelPtr, playerPtr))
+            {
+                float yaw = 0.0f;
+                if (TryGetEntityYaw(playerPtr, yaw))
+                {
+                    return profile == 1
+                        ? ComputeFacingDataFromYaw(yaw)
+                        : ComputeStandingSignDataFromYaw(yaw);
+                }
+            }
+        }
+
+        return result;
     }
 
     int __fastcall Hooked_TileCloneTileId(void* thisPtr, void* level, int x, int y, int z)
@@ -2734,11 +2757,7 @@ namespace GameHooks
 
     bool __fastcall Hooked_ItemInstanceUseOn(void* thisPtr, void* playerSharedPtr, void* level, int x, int y, int z, int face, float clickX, float clickY, float clickZ, bool bTestUseOnOnly)
     {
-        bool isClientSide = false;
-        if (level && IsReadableRange(static_cast<char*>(level) + kLevelIsClientSideOffset, sizeof(bool)))
-            isClientSide = *reinterpret_cast<bool*>(static_cast<char*>(level) + kLevelIsClientSideOffset);
-
-        if (!bTestUseOnOnly && !isClientSide)
+        if (!bTestUseOnOnly)
         {
             void* playerPtr = DecodePlayerPtrFromSharedArg(playerSharedPtr);
             if (playerPtr)

@@ -78,6 +78,7 @@ namespace
     static const char* SYM_TILE_NEIGHBORCHANGED = "?neighborChanged@Tile@@UEAAXPEAVLevel@@HHHH@Z";
     static const char* SYM_TILE_TICK = "?tick@Tile@@UEAAXPEAVLevel@@HHHPEAVRandom@@@Z";
     static const char* SYM_TILE_GETRESOURCE = "?getResource@Tile@@UEAAHHPEAVRandom@@H@Z";
+    static const char* SYM_TILE_GETPLACEDONFACEDATAVALUE = "?getPlacedOnFaceDataValue@Tile@@UEAAHPEAVLevel@@HHHHMMMH@Z";
     static const char* SYM_TILE_CLONETILEID = "?cloneTileId@Tile@@UEAAHPEAVLevel@@HHH@Z";
     static const char* SYM_TILE_GETTEXTURE_FACEDATA = "?getTexture@Tile@@UEAAPEAVIcon@@HH@Z";
     static const char* SYM_STONESLAB_GETTEXTURE = "?getTexture@StoneSlabTile@@UEAAPEAVIcon@@HH@Z";
@@ -339,6 +340,7 @@ bool TileSymbols::Resolve(SymbolResolver& resolver)
     pTileNeighborChanged = resolver.Resolve(SYM_TILE_NEIGHBORCHANGED);
     pTileTick = resolver.Resolve(SYM_TILE_TICK);
     pTileGetResource = resolver.Resolve(SYM_TILE_GETRESOURCE);
+    pTileGetPlacedOnFaceDataValue = resolver.Resolve(SYM_TILE_GETPLACEDONFACEDATAVALUE);
     pTileCloneTileId = resolver.Resolve(SYM_TILE_CLONETILEID);
     pTileGetTextureFaceData = resolver.Resolve(SYM_TILE_GETTEXTURE_FACEDATA);
     pStoneSlabGetTexture = resolver.Resolve(SYM_STONESLAB_GETTEXTURE);
@@ -390,6 +392,7 @@ void TileSymbols::Log() const
     LogSym("Tile::neighborChanged", pTileNeighborChanged);
     LogSym("Tile::tick", pTileTick);
     LogSym("Tile::getResource", pTileGetResource);
+    LogSym("Tile::getPlacedOnFaceDataValue", pTileGetPlacedOnFaceDataValue);
     LogSym("Tile::cloneTileId", pTileCloneTileId);
     LogSym("Tile::getTexture(face,data)", pTileGetTextureFaceData);
     LogSym("StoneSlabTile::getTexture", pStoneSlabGetTexture);

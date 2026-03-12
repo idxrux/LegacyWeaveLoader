@@ -43,6 +43,7 @@ typedef int (__fastcall *LevelGetData_fn)(void* thisPtr, int x, int y, int z);
 typedef void* (__fastcall *McRegionChunkStorageLoad_fn)(void* thisPtr, void* level, int x, int z);
 typedef void (__fastcall *McRegionChunkStorageSave_fn)(void* thisPtr, void* level, void* levelChunk);
 typedef int (__fastcall *TileGetResource_fn)(void* thisPtr, int data, void* random, int playerBonusLevel);
+typedef int (__fastcall *TileGetPlacedOnFaceDataValue_fn)(void* thisPtr, void* levelPtr, int x, int y, int z, int face, float clickX, float clickY, float clickZ, int itemValue);
 typedef int (__fastcall *TileCloneTileId_fn)(void* thisPtr, void* level, int x, int y, int z);
 typedef void* (__fastcall *TileGetTextureFaceData_fn)(void* thisPtr, int face, int data);
 typedef unsigned int (__fastcall *TileGetDescriptionId_fn)(void* thisPtr, int data);
@@ -137,6 +138,7 @@ namespace GameHooks
     extern LevelGetData_fn Level_GetData;
     extern ServerLevelTickPendingTicks_fn Original_ServerLevelTickPendingTicks;
     extern TileGetResource_fn Original_TileGetResource;
+    extern TileGetPlacedOnFaceDataValue_fn Original_TileGetPlacedOnFaceDataValue;
     extern McRegionChunkStorageLoad_fn Original_McRegionChunkStorageLoad;
     extern McRegionChunkStorageSave_fn Original_McRegionChunkStorageSave;
     extern TileCloneTileId_fn Original_TileCloneTileId;
@@ -230,6 +232,7 @@ namespace GameHooks
     bool __fastcall Hooked_LevelSetData(void* thisPtr, int x, int y, int z, int data, int updateFlags, bool forceUpdate);
     void __fastcall Hooked_LevelUpdateNeighborsAt(void* thisPtr, int x, int y, int z, int type);
     bool __fastcall Hooked_ServerLevelTickPendingTicks(void* thisPtr, bool force);
+    int __fastcall Hooked_TileGetPlacedOnFaceDataValue(void* thisPtr, void* levelPtr, int x, int y, int z, int face, float clickX, float clickY, float clickZ, int itemValue);
     void* __fastcall Hooked_McRegionChunkStorageLoad(void* thisPtr, void* level, int x, int z);
     void __fastcall Hooked_McRegionChunkStorageSave(void* thisPtr, void* level, void* levelChunk);
     int __fastcall Hooked_TileGetResource(void* thisPtr, int data, void* random, int playerBonusLevel);
