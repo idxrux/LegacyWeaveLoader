@@ -87,6 +87,10 @@ struct ItemSymbols
     void* pPickaxeItemCanDestroySpecial = nullptr;
     void* pShovelItemGetDestroySpeed = nullptr;
     void* pShovelItemCanDestroySpecial = nullptr;
+    void* pItemEntityGetItem = nullptr;
+    void* pItemRendererRenderGuiItem = nullptr;
+    void* pItemInHandRendererRender = nullptr;
+    void* pItemInHandRendererRenderItem = nullptr;
 
     bool Resolve(SymbolResolver& resolver);
     void Log() const;

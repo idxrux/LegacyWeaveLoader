@@ -190,6 +190,19 @@ public static class ItemRegistry
             throw new InvalidOperationException($"Failed to register item '{id}'. No free IDs or invalid parameters.");
         }
 
+        if (properties.DisplayTransforms != null && properties.DisplayTransforms.Count > 0)
+        {
+            foreach (var entry in properties.DisplayTransforms)
+            {
+                NativeInterop.native_register_item_display_transform(numericId, (int)entry.Key, entry.Value);
+            }
+        }
+
+        if (properties.RendererValue != null)
+            ManagedItemRendererDispatcher.Register(numericId, properties.RendererValue);
+        if (properties.HandEquippedValue.HasValue)
+            NativeInterop.native_set_item_hand_equipped(numericId, properties.HandEquippedValue.Value ? 1 : 0);
+
         if (properties.CreativeTabValue != CreativeTab.None)
         {
             bool added = false;

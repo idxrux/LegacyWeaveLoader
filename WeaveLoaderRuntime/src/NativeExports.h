@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include "ModelRegistry.h"
+#include "ItemRenderRegistry.h"
 
 namespace NativeExports
 {
@@ -111,6 +112,16 @@ extern "C"
         int maxDamage,
         const char* iconName,
         const char* displayName);
+    __declspec(dllexport) void native_register_item_display_transform(
+        int numericItemId,
+        int context,
+        ItemDisplayTransformNative transform);
+    __declspec(dllexport) void native_register_item_renderer(
+        int numericItemId,
+        void* rendererFn);
+    __declspec(dllexport) void native_set_item_hand_equipped(
+        int numericItemId,
+        int isHandEquipped);
 
     __declspec(dllexport) int native_register_pickaxe_item(
         const char* namespacedId,

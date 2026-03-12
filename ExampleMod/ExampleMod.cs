@@ -392,6 +392,7 @@ public class ExampleMod : IMod
             new ItemProperties()
                 .MaxStackSize(1)
                 .Icon("examplemod:item/ruby_wand")
+                .Model("examplemod:item/ruby_wand")
                 .Name(Text.Translatable("item.examplemod.ruby_wand"))
                 .InCreativeTab(CreativeTab.ToolsAndWeapons));
 

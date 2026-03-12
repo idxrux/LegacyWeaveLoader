@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using WeaveLoader.API;
 
 namespace WeaveLoader.API.Item;
@@ -12,6 +13,9 @@ public class ItemProperties
     internal float AttackDamageValue = 0.0f;
     internal string IconValue = "";
     internal string? ModelValue;
+    internal Dictionary<ItemDisplayContext, ItemDisplayTransform>? DisplayTransforms;
+    internal IItemRenderer? RendererValue;
+    internal bool? HandEquippedValue;
     internal CreativeTab CreativeTabValue = CreativeTab.None;
     internal CreativePlacement? CreativePlacementValue;
     internal Text? NameValue;
@@ -28,6 +32,20 @@ public class ItemProperties
     /// and use its texture for the item icon.
     /// </summary>
     public ItemProperties Model(string modelName) { ModelValue = modelName; return this; }
+    /// <summary>
+    /// Override the Java-style display transform for a rendering context (gui, ground, first/third person).
+    /// Values are interpreted the same way as Minecraft Java item model "display" transforms.
+    /// </summary>
+    public ItemProperties DisplayTransform(ItemDisplayContext context, ItemDisplayTransform transform)
+    {
+        DisplayTransforms ??= new Dictionary<ItemDisplayContext, ItemDisplayTransform>();
+        DisplayTransforms[context] = transform;
+        return this;
+    }
+    /// <summary>Register a custom renderer for this item.</summary>
+    public ItemProperties Renderer(IItemRenderer renderer) { RendererValue = renderer; return this; }
+    /// <summary>Force the item to be treated as hand-equipped (sword-like pose) by the renderer.</summary>
+    public ItemProperties HandEquipped(bool handEquipped = true) { HandEquippedValue = handEquipped; return this; }
 
     /// <summary>
     /// Set max damage for a tool/armor item. Setting this to a positive value

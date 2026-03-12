@@ -73,6 +73,10 @@ namespace
     static const char* SYM_PICKAXEITEM_CANDESTROYSPECIAL = "?canDestroySpecial@PickaxeItem@@UEAA_NPEAVTile@@@Z";
     static const char* SYM_SHOVELITEM_GETDESTROYSPEED = "?getDestroySpeed@ShovelItem@@UEAAMV?$shared_ptr@VItemInstance@@@std@@PEAVTile@@@Z";
     static const char* SYM_SHOVELITEM_CANDESTROYSPECIAL = "?canDestroySpecial@ShovelItem@@UEAA_NPEAVTile@@@Z";
+    static const char* SYM_ITEMENTITY_GETITEM = "?getItem@ItemEntity@@QEAA?AV?$shared_ptr@VItemInstance@@@std@@XZ";
+    static const char* SYM_ITEMRENDERER_RENDERGUIITEM = "?renderGuiItem@ItemRenderer@@QEAAXPEAVFont@@PEAVTextures@@V?$shared_ptr@VItemInstance@@@std@@MMMMM_N@Z";
+    static const char* SYM_ITEMINHANDRENDERER_RENDER = "?render@ItemInHandRenderer@@QEAAXM@Z";
+    static const char* SYM_ITEMINHANDRENDERER_RENDERITEM = "?renderItem@ItemInHandRenderer@@QEAAXV?$shared_ptr@VLivingEntity@@@std@@V?$shared_ptr@VItemInstance@@@3@H_N@Z";
 
     static const char* SYM_TILE_ONPLACE = "?onPlace@Tile@@UEAAXPEAVLevel@@HHH@Z";
     static const char* SYM_TILE_NEIGHBORCHANGED = "?neighborChanged@Tile@@UEAAXPEAVLevel@@HHHH@Z";
@@ -313,6 +317,10 @@ bool ItemSymbols::Resolve(SymbolResolver& resolver)
     pPickaxeItemCanDestroySpecial = resolver.Resolve(SYM_PICKAXEITEM_CANDESTROYSPECIAL);
     pShovelItemGetDestroySpeed = resolver.Resolve(SYM_SHOVELITEM_GETDESTROYSPEED);
     pShovelItemCanDestroySpecial = resolver.Resolve(SYM_SHOVELITEM_CANDESTROYSPECIAL);
+    pItemEntityGetItem = resolver.Resolve(SYM_ITEMENTITY_GETITEM);
+    pItemRendererRenderGuiItem = resolver.Resolve(SYM_ITEMRENDERER_RENDERGUIITEM);
+    pItemInHandRendererRender = resolver.Resolve(SYM_ITEMINHANDRENDERER_RENDER);
+    pItemInHandRendererRenderItem = resolver.Resolve(SYM_ITEMINHANDRENDERER_RENDERITEM);
     if (!pShovelItemGetDestroySpeed)
         pShovelItemGetDestroySpeed = resolver.ResolveExact("DiggerItem::getDestroySpeed");
     return true;
@@ -332,6 +340,10 @@ void ItemSymbols::Log() const
     LogSym("PickaxeItem::canDestroySpecial", pPickaxeItemCanDestroySpecial);
     LogSym("ShovelItem::getDestroySpeed", pShovelItemGetDestroySpeed);
     LogSym("ShovelItem::canDestroySpecial", pShovelItemCanDestroySpecial);
+    LogSym("ItemEntity::getItem", pItemEntityGetItem);
+    LogSym("ItemRenderer::renderGuiItem", pItemRendererRenderGuiItem);
+    LogSym("ItemInHandRenderer::render", pItemInHandRendererRender);
+    LogSym("ItemInHandRenderer::renderItem", pItemInHandRendererRenderItem);
 }
 
 bool TileSymbols::Resolve(SymbolResolver& resolver)

@@ -22,6 +22,10 @@ typedef void* (__fastcall *RegisterIcon_fn)(void* thisPtr, const std::wstring& n
 typedef void* (__fastcall *ItemInstanceGetIcon_fn)(void* thisPtr);
 typedef void (__fastcall *EntityRendererBindTextureResource_fn)(void* thisPtr, void* resourcePtr);
 typedef void (__fastcall *ItemRendererRenderItemBillboard_fn)(void* thisPtr, void* entitySharedPtr, void* iconPtr, int count, float a, float red, float green, float blue);
+typedef void (__fastcall *ItemRendererRenderGuiItem_fn)(void* thisPtr, void* fontPtr, void* texturesPtr, void* itemInstanceSharedPtr, float x, float y, float scaleX, float scaleY, float alpha, bool useCompiled);
+typedef void (__fastcall *ItemInHandRendererRender_fn)(void* thisPtr, float a);
+typedef void (__fastcall *ItemInHandRendererRenderItem_fn)(void* thisPtr, void* entitySharedPtr, void* itemInstanceSharedPtr, int layer, bool setColor);
+typedef void (__fastcall *ItemEntityGetItem_fn)(void* outSharedPtr, void* thisPtr);
 typedef void (__fastcall *AnimatedTextureCycleFrames_fn)(void* thisPtr);
 typedef int (__fastcall *TextureGetSourceDim_fn)(void* thisPtr);
 typedef void (__fastcall *ItemInstanceMineBlock_fn)(void* thisPtr, void* level, int tile, int x, int y, int z, void* ownerSharedPtr);
@@ -113,6 +117,9 @@ namespace GameHooks
     extern ItemInstanceGetIcon_fn Original_ItemInstanceGetIcon;
     extern EntityRendererBindTextureResource_fn Original_EntityRendererBindTextureResource;
     extern ItemRendererRenderItemBillboard_fn Original_ItemRendererRenderItemBillboard;
+    extern ItemRendererRenderGuiItem_fn Original_ItemRendererRenderGuiItem;
+    extern ItemInHandRendererRender_fn Original_ItemInHandRendererRender;
+    extern ItemInHandRendererRenderItem_fn Original_ItemInHandRendererRenderItem;
     extern AnimatedTextureCycleFrames_fn Original_CompassTextureCycleFrames;
     extern AnimatedTextureCycleFrames_fn Original_ClockTextureCycleFrames;
     extern TextureGetSourceDim_fn Original_CompassTextureGetSourceWidth;
@@ -209,6 +216,9 @@ namespace GameHooks
     void* __fastcall Hooked_ItemInstanceGetIcon(void* thisPtr);
     void __fastcall Hooked_EntityRendererBindTextureResource(void* thisPtr, void* resourcePtr);
     void __fastcall Hooked_ItemRendererRenderItemBillboard(void* thisPtr, void* entitySharedPtr, void* iconPtr, int count, float a, float red, float green, float blue);
+    void __fastcall Hooked_ItemRendererRenderGuiItem(void* thisPtr, void* fontPtr, void* texturesPtr, void* itemInstanceSharedPtr, float x, float y, float scaleX, float scaleY, float alpha, bool useCompiled);
+    void __fastcall Hooked_ItemInHandRendererRender(void* thisPtr, float a);
+    void __fastcall Hooked_ItemInHandRendererRenderItem(void* thisPtr, void* entitySharedPtr, void* itemInstanceSharedPtr, int layer, bool setColor);
     void __fastcall Hooked_CompassTextureCycleFrames(void* thisPtr);
     void __fastcall Hooked_ClockTextureCycleFrames(void* thisPtr);
     int __fastcall Hooked_CompassTextureGetSourceWidth(void* thisPtr);
@@ -285,6 +295,7 @@ namespace GameHooks
                           void* entityIoNewById,
                           void* entityMoveTo,
                           void* entitySetPos);
+    void SetItemRenderSymbols(void* itemEntityGetItem);
     void SetUseActionSymbols(void* inventoryRemoveResource,
                              void* inventoryVtable,
                              void* itemInstanceHurtAndBreak,

@@ -103,6 +103,7 @@ add_library(WeaveLoaderRuntime SHARED
     src/GameObjectFactory.cpp
     src/ModStrings.cpp
     src/ModAtlas.cpp
+    src/ItemRenderRegistry.cpp
 )
 
 target_include_directories(WeaveLoaderRuntime PRIVATE
@@ -115,6 +116,7 @@ target_link_libraries(WeaveLoaderRuntime PRIVATE
     minhook
     raw_pdb
     bcrypt
+    opengl32
 )
 
 if(EXISTS "${NETHOST_LIB}")

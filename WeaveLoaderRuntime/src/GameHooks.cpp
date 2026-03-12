@@ -13,7 +13,9 @@
 #include "LogUtil.h"
 #include "WorldIdRemap.h"
 #include "ModelRegistry.h"
+#include "ItemRenderRegistry.h"
 #include <Windows.h>
+#include <gl/GL.h>
 #include <string>
 #include <cstdio>
 #include <cstring>
@@ -51,6 +53,9 @@ namespace GameHooks
     ItemInstanceGetIcon_fn Original_ItemInstanceGetIcon = nullptr;
     EntityRendererBindTextureResource_fn Original_EntityRendererBindTextureResource = nullptr;
     ItemRendererRenderItemBillboard_fn Original_ItemRendererRenderItemBillboard = nullptr;
+    ItemRendererRenderGuiItem_fn Original_ItemRendererRenderGuiItem = nullptr;
+    ItemInHandRendererRender_fn Original_ItemInHandRendererRender = nullptr;
+    ItemInHandRendererRenderItem_fn Original_ItemInHandRendererRenderItem = nullptr;
     AnimatedTextureCycleFrames_fn Original_CompassTextureCycleFrames = nullptr;
     AnimatedTextureCycleFrames_fn Original_ClockTextureCycleFrames = nullptr;
     TextureGetSourceDim_fn Original_CompassTextureGetSourceWidth = nullptr;
@@ -658,11 +663,14 @@ namespace GameHooks
     static InventoryRemoveResource_fn s_inventoryRemoveResource = nullptr;
     static void* s_inventoryVtable = nullptr;
     static ItemInstanceHurtAndBreak_fn s_itemInstanceHurtAndBreak = nullptr;
+    static ItemEntityGetItem_fn s_itemEntityGetItem = nullptr;
+    static thread_local int s_firstPersonRenderDepth = 0;
     static std::string s_modsPath;
     static std::unordered_map<std::string, std::string> s_modAssetRoots;
     static bool s_modAssetsIndexed = false;
     static std::atomic<bool> s_modAssetsIndexing{false};
     static std::mutex s_modAssetsMutex;
+    static std::unordered_map<int, int> s_itemRenderLogCount;
     // Verified from compiled Player::inventory accesses in this game build.
     static constexpr ptrdiff_t kPlayerInventoryOffset = 0x340;
     static constexpr ptrdiff_t kLevelIsClientSideOffset = 0x268;
@@ -1210,7 +1218,21 @@ namespace GameHooks
         void* playerSharedPtr;
     };
 
+    struct ItemRenderNativeArgs
+    {
+        int itemId;
+        int context;
+        void* rendererPtr;
+        void* itemInstancePtr;
+        float x;
+        float y;
+        float scaleX;
+        float scaleY;
+        float alpha;
+    };
+
     static bool IsFireballFamilyEntityId(int entityNumericId);
+    static bool LooksLikeEntityPtr(void* candidate);
     static void* DecodeItemInstancePtrFromSharedArg(void* sharedArg);
     static void* DecodePlayerPtrFromSharedArg(void* sharedArg);
 
@@ -1237,6 +1259,136 @@ namespace GameHooks
         }
 
         return false;
+    }
+
+    static bool TryGetItemIdFromItemInstanceShared(void* itemInstanceSharedPtr, int& outItemId, void** outItemInstancePtr)
+    {
+        void* itemInstancePtr = DecodeItemInstancePtrFromSharedArg(itemInstanceSharedPtr);
+        if (!itemInstancePtr)
+            return false;
+        int itemId = 0;
+        if (!TryReadItemId(itemInstancePtr, itemId))
+            return false;
+        outItemId = itemId;
+        if (outItemInstancePtr)
+            *outItemInstancePtr = itemInstancePtr;
+        return true;
+    }
+
+    static void* DecodeEntityPtrFromSharedArg(void* sharedArg)
+    {
+        if (!sharedArg || !IsCanonicalUserPtr(sharedArg))
+            return nullptr;
+
+        __try
+        {
+            void* p = *reinterpret_cast<void**>(sharedArg);
+            if (LooksLikeEntityPtr(p))
+                return p;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {}
+
+        if (LooksLikeEntityPtr(sharedArg))
+            return sharedArg;
+
+        return nullptr;
+    }
+
+    static bool TryGetItemIdFromItemEntityShared(void* itemEntitySharedPtr, int& outItemId, void** outItemInstancePtr)
+    {
+        if (!s_itemEntityGetItem)
+            return false;
+
+        void* itemEntityPtr = DecodeEntityPtrFromSharedArg(itemEntitySharedPtr);
+        if (!itemEntityPtr)
+            return false;
+
+        std::shared_ptr<void> itemShared;
+        s_itemEntityGetItem(&itemShared, itemEntityPtr);
+        void* itemInstancePtr = DecodeItemInstancePtrFromSharedArg(&itemShared);
+        if (!itemInstancePtr)
+            return false;
+
+        int itemId = 0;
+        if (!TryReadItemId(itemInstancePtr, itemId))
+            return false;
+
+        outItemId = itemId;
+        if (outItemInstancePtr)
+            *outItemInstancePtr = itemInstancePtr;
+        return true;
+    }
+
+    static float GetTranslationScaleForContext(int context)
+    {
+        return context == ItemDisplay_Gui ? 1.0f : (1.0f / 16.0f);
+    }
+
+    static void ApplyItemDisplayTransform(const ItemDisplayTransformNative& transform, int context)
+    {
+        float tScale = GetTranslationScaleForContext(context);
+        glTranslatef(transform.transX * tScale, transform.transY * tScale, transform.transZ * tScale);
+        glRotatef(transform.rotZ, 0.0f, 0.0f, 1.0f);
+        glRotatef(transform.rotY, 0.0f, 1.0f, 0.0f);
+        glRotatef(transform.rotX, 1.0f, 0.0f, 0.0f);
+        glScalef(transform.scaleX, transform.scaleY, transform.scaleZ);
+    }
+
+    static int BeginModelViewTransform()
+    {
+        GLint prevMode = GL_MODELVIEW;
+        glGetIntegerv(GL_MATRIX_MODE, &prevMode);
+        if (prevMode != GL_MODELVIEW)
+            glMatrixMode(GL_MODELVIEW);
+        return prevMode;
+    }
+
+    static void EndModelViewTransform(int prevMode)
+    {
+        if (prevMode != GL_MODELVIEW)
+            glMatrixMode(prevMode);
+    }
+
+    static bool TryGetDisplayTransformWithFallback(int itemId, int context, ItemDisplayTransformNative& outTransform)
+    {
+        if (ItemRenderRegistry::TryGetDisplayTransform(itemId, context, outTransform))
+            return true;
+
+        if (context == ItemDisplay_FirstPersonRightHand)
+            return ItemRenderRegistry::TryGetDisplayTransform(itemId, ItemDisplay_FirstPersonLeftHand, outTransform);
+        if (context == ItemDisplay_ThirdPersonRightHand)
+            return ItemRenderRegistry::TryGetDisplayTransform(itemId, ItemDisplay_ThirdPersonLeftHand, outTransform);
+
+        return false;
+    }
+
+    static bool TryRenderCustomItem(int itemId,
+                                    int context,
+                                    void* rendererPtr,
+                                    void* itemInstancePtr,
+                                    float x,
+                                    float y,
+                                    float scaleX,
+                                    float scaleY,
+                                    float alpha)
+    {
+        ManagedItemRenderFn fn = ItemRenderRegistry::GetCustomRenderer(itemId);
+        if (!fn)
+            return false;
+
+        ItemRenderNativeArgs args{};
+        args.itemId = itemId;
+        args.context = context;
+        args.rendererPtr = rendererPtr;
+        args.itemInstancePtr = itemInstancePtr;
+        args.x = x;
+        args.y = y;
+        args.scaleX = scaleX;
+        args.scaleY = scaleY;
+        args.alpha = alpha;
+
+        int handled = fn(&args, sizeof(args));
+        return handled != 0;
     }
 
     static int TryDispatchMineBlockFromItemInstancePtr(void* itemInstancePtr, int tile, int x, int y, int z, const char* sourceTag)
@@ -1285,6 +1437,11 @@ namespace GameHooks
         s_entityIoNewById = reinterpret_cast<EntityIONewById_fn>(entityIoNewById);
         s_entityMoveTo = reinterpret_cast<EntityMoveTo_fn>(entityMoveTo);
         s_entitySetPos = reinterpret_cast<EntitySetPos_fn>(entitySetPos);
+    }
+
+    void SetItemRenderSymbols(void* itemEntityGetItem)
+    {
+        s_itemEntityGetItem = reinterpret_cast<ItemEntityGetItem_fn>(itemEntityGetItem);
     }
 
     void SetUseActionSymbols(void* inventoryRemoveResource,
@@ -1457,6 +1614,9 @@ namespace GameHooks
     static bool LooksLikeEntityPtr(void* candidate)
     {
         if (!candidate || !IsReadableRange(candidate, sizeof(void*)))
+            return false;
+        // Reject pointers that are already in game code space (likely vtable pointers).
+        if (IsGameCodePtr(candidate))
             return false;
         void* vt = *reinterpret_cast<void**>(candidate);
         if (!IsCanonicalUserPtr(vt))
@@ -2643,6 +2803,113 @@ namespace GameHooks
         s_hasForcedBillboardRoute = hadForcedRoute;
         s_forcedBillboardAtlas = prevAtlas;
         s_forcedBillboardPage = prevPage;
+    }
+
+    void __fastcall Hooked_ItemRendererRenderGuiItem(void* thisPtr, void* fontPtr, void* texturesPtr, void* itemInstanceSharedPtr, float x, float y, float scaleX, float scaleY, float alpha, bool useCompiled)
+    {
+        if (!Original_ItemRendererRenderGuiItem)
+            return;
+
+        int itemId = -1;
+        void* itemInstancePtr = nullptr;
+        bool hasItemId = TryGetItemIdFromItemInstanceShared(itemInstanceSharedPtr, itemId, &itemInstancePtr);
+        if (!hasItemId)
+        {
+            Original_ItemRendererRenderGuiItem(thisPtr, fontPtr, texturesPtr, itemInstanceSharedPtr, x, y, scaleX, scaleY, alpha, useCompiled);
+            return;
+        }
+
+        ItemDisplayTransformNative transform{};
+        bool hasTransform = TryGetDisplayTransformWithFallback(itemId, ItemDisplay_Gui, transform);
+        bool hasCustom = ItemRenderRegistry::GetCustomRenderer(itemId) != nullptr;
+
+        if (!hasTransform && !hasCustom)
+        {
+            Original_ItemRendererRenderGuiItem(thisPtr, fontPtr, texturesPtr, itemInstanceSharedPtr, x, y, scaleX, scaleY, alpha, useCompiled);
+            return;
+        }
+
+        int prevMode = BeginModelViewTransform();
+        glPushMatrix();
+        glTranslatef(x, y, 0.0f);
+        glScalef(scaleX, scaleY, 1.0f);
+
+        if (hasTransform)
+            ApplyItemDisplayTransform(transform, ItemDisplay_Gui);
+
+        bool handled = hasCustom
+            ? TryRenderCustomItem(itemId, ItemDisplay_Gui, thisPtr, itemInstancePtr, x, y, scaleX, scaleY, alpha)
+            : false;
+
+        if (!handled)
+            Original_ItemRendererRenderGuiItem(thisPtr, fontPtr, texturesPtr, itemInstanceSharedPtr, 0.0f, 0.0f, 1.0f, 1.0f, alpha, useCompiled);
+
+        glPopMatrix();
+        EndModelViewTransform(prevMode);
+    }
+
+    void __fastcall Hooked_ItemInHandRendererRender(void* thisPtr, float a)
+    {
+        s_firstPersonRenderDepth++;
+        if (Original_ItemInHandRendererRender)
+            Original_ItemInHandRendererRender(thisPtr, a);
+        s_firstPersonRenderDepth--;
+    }
+
+    void __fastcall Hooked_ItemInHandRendererRenderItem(void* thisPtr, void* entitySharedPtr, void* itemInstanceSharedPtr, int layer, bool setColor)
+    {
+        if (!Original_ItemInHandRendererRenderItem)
+            return;
+
+        int itemId = -1;
+        void* itemInstancePtr = nullptr;
+        bool hasItemId = TryGetItemIdFromItemInstanceShared(itemInstanceSharedPtr, itemId, &itemInstancePtr);
+        if (!hasItemId)
+        {
+            Original_ItemInHandRendererRenderItem(thisPtr, entitySharedPtr, itemInstanceSharedPtr, layer, setColor);
+            return;
+        }
+
+        int context = s_firstPersonRenderDepth > 0 ? ItemDisplay_FirstPersonRightHand : ItemDisplay_ThirdPersonRightHand;
+        ItemDisplayTransformNative transform{};
+        bool hasTransform = TryGetDisplayTransformWithFallback(itemId, context, transform);
+        bool hasCustom = ItemRenderRegistry::GetCustomRenderer(itemId) != nullptr;
+
+        if (hasTransform)
+        {
+            int& count = s_itemRenderLogCount[itemId];
+            if (count < 5)
+            {
+                LogUtil::Log("[WeaveLoader] ItemRender: item=%d ctx=%d rot=(%.2f,%.2f,%.2f) trans=(%.2f,%.2f,%.2f) scale=(%.2f,%.2f,%.2f)",
+                             itemId,
+                             context,
+                             transform.rotX, transform.rotY, transform.rotZ,
+                             transform.transX, transform.transY, transform.transZ,
+                             transform.scaleX, transform.scaleY, transform.scaleZ);
+                count++;
+            }
+        }
+
+        if (!hasTransform && !hasCustom)
+        {
+            Original_ItemInHandRendererRenderItem(thisPtr, entitySharedPtr, itemInstanceSharedPtr, layer, setColor);
+            return;
+        }
+
+        int prevMode = BeginModelViewTransform();
+        glPushMatrix();
+        if (hasTransform)
+            ApplyItemDisplayTransform(transform, context);
+
+        bool handled = hasCustom
+            ? TryRenderCustomItem(itemId, context, thisPtr, itemInstancePtr, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f)
+            : false;
+
+        if (!handled)
+            Original_ItemInHandRendererRenderItem(thisPtr, entitySharedPtr, itemInstanceSharedPtr, layer, setColor);
+
+        glPopMatrix();
+        EndModelViewTransform(prevMode);
     }
 
     static void LogAnimatedTextureGuard(const char* what, void* thisPtr)

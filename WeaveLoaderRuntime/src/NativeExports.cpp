@@ -367,6 +367,30 @@ int native_register_item(
     return id;
 }
 
+void native_register_item_display_transform(int numericItemId, int context, ItemDisplayTransformNative transform)
+{
+    ItemRenderRegistry::RegisterDisplayTransform(numericItemId, context, transform);
+}
+
+void native_register_item_renderer(int numericItemId, void* rendererFn)
+{
+    ItemRenderRegistry::RegisterCustomRenderer(numericItemId, reinterpret_cast<ManagedItemRenderFn>(rendererFn));
+}
+
+void native_set_item_hand_equipped(int numericItemId, int isHandEquipped)
+{
+    void* itemPtr = GameObjectFactory::FindItem(numericItemId);
+    if (!itemPtr)
+    {
+        LogUtil::Log("[WeaveLoader] HandEquipped: item %d not found", numericItemId);
+        return;
+    }
+
+    constexpr ptrdiff_t kHandEquippedOffset = 0x40;
+    *reinterpret_cast<unsigned char*>(static_cast<char*>(itemPtr) + kHandEquippedOffset) = (isHandEquipped != 0) ? 1 : 0;
+    LogUtil::Log("[WeaveLoader] HandEquipped: item %d -> %d", numericItemId, isHandEquipped != 0);
+}
+
 int native_register_pickaxe_item(
     const char* namespacedId,
     int tier,

@@ -97,6 +97,22 @@ internal static class NativeInterop
         string iconName,
         string displayName);
 
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void native_register_item_display_transform(
+        int numericItemId,
+        int context,
+        Item.ItemDisplayTransform transform);
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void native_register_item_renderer(
+        int numericItemId,
+        nint rendererFnPtr);
+
+    [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void native_set_item_hand_equipped(
+        int numericItemId,
+        int isHandEquipped);
+
     [DllImport(RuntimeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int native_register_pickaxe_item(
         string namespacedId,

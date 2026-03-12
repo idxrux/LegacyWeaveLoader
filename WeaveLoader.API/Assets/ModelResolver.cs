@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using WeaveLoader.API.Item;
 
 namespace WeaveLoader.API.Assets;
 
@@ -12,6 +13,7 @@ internal static class ModelResolver
     {
         public string IconName = "";
         public List<ModelBox> Boxes = new();
+        public Dictionary<ItemDisplayContext, ItemDisplayTransform> DisplayTransforms = new();
     }
 
     private enum ModelKind
@@ -132,6 +134,18 @@ internal static class ModelResolver
                 properties.IconValue = model.IconName;
                 Logger.Debug($"Model resolved for item '{id}' -> icon '{model.IconName}'");
             }
+            if (model.DisplayTransforms.Count > 0)
+            {
+                properties.DisplayTransforms ??= new Dictionary<ItemDisplayContext, ItemDisplayTransform>();
+                foreach (var entry in model.DisplayTransforms)
+                {
+                    if (!properties.DisplayTransforms.ContainsKey(entry.Key))
+                        properties.DisplayTransforms[entry.Key] = entry.Value;
+                }
+                Logger.Info($"Item display transforms loaded for '{id}': {model.DisplayTransforms.Count}");
+                if (!properties.HandEquippedValue.HasValue && HasHandTransforms(model.DisplayTransforms))
+                    properties.HandEquippedValue = true;
+            }
         }
         else if (!string.IsNullOrWhiteSpace(properties.ModelValue))
         {
@@ -203,6 +217,8 @@ internal static class ModelResolver
         }
 
         TryParseElements(modelPath, data.Boxes);
+        if (kind == ModelKind.Item)
+            TryParseDisplay(modelPath, modelNamespace, data.DisplayTransforms, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
         model = data;
         return !string.IsNullOrWhiteSpace(data.IconName) || data.Boxes.Count > 0;
     }
@@ -349,13 +365,160 @@ internal static class ModelResolver
                     continue;
                 textures[prop.Name] = value!;
             }
-            return textures.Count > 0;
         }
         catch (Exception ex)
         {
             Logger.Warning($"Failed to parse model JSON '{modelPath}': {ex.Message}");
             return false;
         }
+
+        return textures.Count > 0;
+    }
+
+    private static void TryParseDisplay(string modelPath, string modelNamespace, Dictionary<ItemDisplayContext, ItemDisplayTransform> display, HashSet<string> visited)
+    {
+        if (string.IsNullOrWhiteSpace(modelPath) || string.IsNullOrWhiteSpace(modelNamespace))
+            return;
+        if (visited.Contains(modelPath))
+            return;
+
+        visited.Add(modelPath);
+
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(modelPath));
+            JsonElement root = doc.RootElement;
+
+            if (root.TryGetProperty("parent", out JsonElement parentEl) && parentEl.ValueKind == JsonValueKind.String)
+            {
+                string? parentValue = parentEl.GetString();
+                if (!string.IsNullOrWhiteSpace(parentValue) &&
+                    TryGetParentModelFilePath(parentValue!, modelNamespace, out string parentPath, out string parentNamespace) &&
+                    File.Exists(parentPath))
+                {
+                    TryParseDisplay(parentPath, parentNamespace, display, visited);
+                }
+            }
+
+            if (root.TryGetProperty("display", out JsonElement displayEl) && displayEl.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var entry in displayEl.EnumerateObject())
+                {
+                    if (!TryMapDisplayContext(entry.Name, out ItemDisplayContext context))
+                        continue;
+                    if (entry.Value.ValueKind != JsonValueKind.Object)
+                        continue;
+                    ItemDisplayTransform transform = ParseDisplayTransform(entry.Value);
+                    display[context] = transform;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Failed to parse item display data '{modelPath}': {ex.Message}");
+        }
+    }
+
+    private static bool TryGetParentModelFilePath(string parentValue, string currentNamespace, out string modelPath, out string modelNamespace)
+    {
+        modelPath = "";
+        modelNamespace = "";
+
+        if (string.IsNullOrWhiteSpace(ModContext.ModFolder))
+            return false;
+
+        string value = parentValue.Replace('\\', '/');
+        string ns = currentNamespace;
+        int colon = value.IndexOf(':');
+        if (colon >= 0)
+        {
+            ns = value.Substring(0, colon);
+            value = value.Substring(colon + 1);
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        string relative = value.Replace('/', Path.DirectorySeparatorChar);
+        string fullPath = Path.Combine(ModContext.ModFolder!, "assets", ns, "models", relative + ".json");
+        modelPath = fullPath;
+        modelNamespace = ns;
+        return true;
+    }
+
+    private static bool TryMapDisplayContext(string name, out ItemDisplayContext context)
+    {
+        switch (name.Trim().ToLowerInvariant())
+        {
+            case "gui":
+                context = ItemDisplayContext.Gui;
+                return true;
+            case "ground":
+                context = ItemDisplayContext.Ground;
+                return true;
+            case "fixed":
+                context = ItemDisplayContext.Fixed;
+                return true;
+            case "head":
+                context = ItemDisplayContext.Head;
+                return true;
+            case "firstperson_righthand":
+                context = ItemDisplayContext.FirstPersonRightHand;
+                return true;
+            case "firstperson_lefthand":
+                context = ItemDisplayContext.FirstPersonLeftHand;
+                return true;
+            case "thirdperson_righthand":
+                context = ItemDisplayContext.ThirdPersonRightHand;
+                return true;
+            case "thirdperson_lefthand":
+                context = ItemDisplayContext.ThirdPersonLeftHand;
+                return true;
+            default:
+                context = ItemDisplayContext.Gui;
+                return false;
+        }
+    }
+
+    private static ItemDisplayTransform ParseDisplayTransform(JsonElement element)
+    {
+        float rX = 0.0f;
+        float rY = 0.0f;
+        float rZ = 0.0f;
+        float tX = 0.0f;
+        float tY = 0.0f;
+        float tZ = 0.0f;
+        float sX = 1.0f;
+        float sY = 1.0f;
+        float sZ = 1.0f;
+
+        ReadVec3(element, "rotation", ref rX, ref rY, ref rZ);
+        ReadVec3(element, "translation", ref tX, ref tY, ref tZ);
+        ReadVec3(element, "scale", ref sX, ref sY, ref sZ);
+
+        return new ItemDisplayTransform(rX, rY, rZ, tX, tY, tZ, sX, sY, sZ);
+    }
+
+    private static void ReadVec3(JsonElement parent, string name, ref float x, ref float y, ref float z)
+    {
+        if (!parent.TryGetProperty(name, out JsonElement el) || el.ValueKind != JsonValueKind.Array)
+            return;
+
+        int count = el.GetArrayLength();
+        if (count > 0 && el[0].ValueKind == JsonValueKind.Number)
+            x = (float)el[0].GetDouble();
+        if (count > 1 && el[1].ValueKind == JsonValueKind.Number)
+            y = (float)el[1].GetDouble();
+        if (count > 2 && el[2].ValueKind == JsonValueKind.Number)
+            z = (float)el[2].GetDouble();
+    }
+
+    private static bool HasHandTransforms(Dictionary<ItemDisplayContext, ItemDisplayTransform> display)
+    {
+        return display.ContainsKey(ItemDisplayContext.FirstPersonRightHand) ||
+               display.ContainsKey(ItemDisplayContext.FirstPersonLeftHand) ||
+               display.ContainsKey(ItemDisplayContext.ThirdPersonRightHand) ||
+               display.ContainsKey(ItemDisplayContext.ThirdPersonLeftHand);
     }
 
     private static void TryParseElements(string modelPath, List<ModelBox> boxes)

@@ -226,6 +226,48 @@ bool HookManager::Install(const SymbolResolver& symbols)
         }
     }
 
+    if (symbols.Item.pItemRendererRenderGuiItem)
+    {
+        if (MH_CreateHook(symbols.Item.pItemRendererRenderGuiItem,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ItemRendererRenderGuiItem),
+                          reinterpret_cast<void**>(&GameHooks::Original_ItemRendererRenderGuiItem)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook ItemRenderer::renderGuiItem");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked ItemRenderer::renderGuiItem (item display transforms)");
+        }
+    }
+
+    if (symbols.Item.pItemInHandRendererRender)
+    {
+        if (MH_CreateHook(symbols.Item.pItemInHandRendererRender,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ItemInHandRendererRender),
+                          reinterpret_cast<void**>(&GameHooks::Original_ItemInHandRendererRender)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook ItemInHandRenderer::render");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked ItemInHandRenderer::render (first-person context)");
+        }
+    }
+
+    if (symbols.Item.pItemInHandRendererRenderItem)
+    {
+        if (MH_CreateHook(symbols.Item.pItemInHandRendererRenderItem,
+                          reinterpret_cast<void*>(&GameHooks::Hooked_ItemInHandRendererRenderItem),
+                          reinterpret_cast<void**>(&GameHooks::Original_ItemInHandRendererRenderItem)) != MH_OK)
+        {
+            LogUtil::Log("[WeaveLoader] Warning: Failed to hook ItemInHandRenderer::renderItem");
+        }
+        else
+        {
+            LogUtil::Log("[WeaveLoader] Hooked ItemInHandRenderer::renderItem (item display transforms)");
+        }
+    }
+
     if (symbols.Texture.pCompassTextureCycleFrames)
     {
         if (MH_CreateHook(symbols.Texture.pCompassTextureCycleFrames,
@@ -1050,6 +1092,7 @@ bool HookManager::Install(const SymbolResolver& symbols)
         symbols.Entity.pEntityIONewById,
         symbols.Entity.pEntityMoveTo,
         symbols.Entity.pEntitySetPos);
+    GameHooks::SetItemRenderSymbols(symbols.Item.pItemEntityGetItem);
     GameHooks::SetUseActionSymbols(
         symbols.Inventory.pInventoryRemoveResource,
         symbols.Inventory.pInventoryVtable,
