@@ -1,6 +1,10 @@
 # Weave Loader
 
-Weave Loader is a mod loader for Minecraft Legacy Edition (Xbox 360 / PS3 / Windows 64-bit). It launches the game and loads mods from a folder. It does not modify game files.
+Weave Loader was a mod loader targeting Minecraft Legacy Edition (Xbox 360 / PS3 / Windows 64-bit). It launches the game and loads mods from a folder. It does not modify game files.
+
+# Archive Notice
+
+This repository is now archived as Weave is being rewritten and moved to a new repository. The new loader is planned to include a more fleshed-out API and backend, along with cleaner, more readable codebase.
 
 ## What it does
 
